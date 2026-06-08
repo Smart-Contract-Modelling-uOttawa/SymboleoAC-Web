@@ -1,0 +1,48 @@
+# Local end-to-end stack. Build the jars first:
+#   (cd language-server && mvn -B package)
+#   (cd codegen-cli && mvn -B package)
+# Then from the repo root:
+#   docker compose -f infra/docker-compose.yml up --build
+#
+# For production deployment on the VPS use the same file; set APP_DOMAIN
+# in the environment so Caddy can issue a real cert.
+services:
+  bridge:
+    build:
+      context: ..
+      dockerfile: bridge/Dockerfile
+    environment:
+      PORT: "3000"
+      MAX_SESSIONS: "8"
+      JVM_XMX: "512m"
+      # In production set ALLOW_ORIGIN to the GitHub Pages origin, e.g.
+      #   https://<user>.github.io   (project-pages path is still that origin)
+      ALLOW_ORIGIN: "${ALLOW_ORIGIN:-*}"
+      GEN_TIMEOUT_MS: "30000"
+      # M7 hardening knobs (see bridge/src/index.ts):
+      IDLE_TIMEOUT_MS: "600000"   # reap LSP sessions idle > 10 min
+      RATE_WINDOW_MS: "60000"     # /generate per-IP window
+      RATE_MAX: "20"              # …max requests per window per IP
+      MAX_CONCURRENT_GEN: "4"     # cap simultaneous codegen JVMs
+    restart: unless-stopped
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      APP_DOMAIN: "${APP_DOMAIN:-localhost}"
+    depends_on:
+      - bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

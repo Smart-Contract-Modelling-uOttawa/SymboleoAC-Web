@@ -1,0 +1,37 @@
+# ─── dependencies ───────────────────────────────────────────────────────────
+**/node_modules/
+
+# ─── build outputs (Maven, TS, Vite, Eclipse) ───────────────────────────────
+**/target/
+**/bin/
+**/test-bin/
+bridge/build/
+web/dist/
+*.class
+
+# ─── jars are rebuilt from source; never commit them ────────────────────────
+*.jar
+
+# ─── generated at build time from the upstream grammar ──────────────────────
+web/src/editor/symboleoac.monarch.ts
+
+# ─── local env / secrets (never ship to the browser or git) ─────────────────
+web/.env.local
+*.local
+.env
+.env.*
+
+# ─── local agent / editor config (not for the public repo) ──────────────────
+.claude/
+
+# ─── logs / OS cruft ────────────────────────────────────────────────────────
+*.log
+npm-install.log
+.DS_Store
+Thumbs.db
+
+# ─── Eclipse workspace metadata (the per-project .project/.classpath ARE
+#     committed on purpose — see upstream/UPSTREAM_PROVENANCE.md — but a user's
+#     own workspace settings are not) ──────────────────────────────────────
+.metadata/
+**/.settings/

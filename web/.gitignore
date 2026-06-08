@@ -1,0 +1,6 @@
+node_modules
+dist
+.env.local
+*.local
+# Auto-generated from the upstream grammar at build time (predev/prebuild).
+src/editor/symboleoac.monarch.ts

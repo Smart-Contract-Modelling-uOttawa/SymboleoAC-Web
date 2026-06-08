@@ -1,0 +1,74 @@
+# Build the SymboleoAC web IDE and publish it to GitHub Pages.
+#
+# Requirements in repository settings:
+#   Pages → Source = "GitHub Actions"
+#   Repository variables (Settings → Secrets and variables → Actions → Variables):
+#     APP_DOMAIN   – the public host where the bridge runs, e.g. "symboleoac.example.org"
+#     PAGES_BASE   – (optional) "/" for user/org pages, "/<repo>/" for project pages
+#
+# Two layers of "must be https/wss":
+#   The browser blocks plain ws:// when the page itself is on https. The action
+#   below builds VITE_LSP_URL/VITE_API_URL with wss/https unconditionally so
+#   we cannot ship the insecure variant.
+name: deploy-web
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'upstream/SymboleoAC-IDE/ca.uottawa.csmlab.symboleo/src/ca/uottawa/csmlab/symboleo/Symboleo.xtext'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A single in-flight deploy at a time; cancel a queued one if a newer push lands.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The Monarch grammar extractor reads upstream/SymboleoAC-IDE/.../Symboleo.xtext.
+          # We vendor it as a checked-in tree, so a plain checkout (no submodules) is fine.
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Build
+        env:
+          VITE_LSP_URL: wss://${{ vars.APP_DOMAIN }}/lsp
+          VITE_API_URL: https://${{ vars.APP_DOMAIN }}
+          VITE_BASE_PATH: ${{ vars.PAGES_BASE || '/' }}
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

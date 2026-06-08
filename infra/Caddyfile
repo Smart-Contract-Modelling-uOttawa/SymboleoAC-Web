@@ -1,0 +1,22 @@
+# Caddy automatically provisions a Let's Encrypt cert for APP_DOMAIN and
+# transparently upgrades WebSocket connections, so both wss://<domain>/lsp
+# and https://<domain>/generate Just Work over TLS.
+#
+# Local dev: set APP_DOMAIN=":80" to serve PLAIN HTTP/WS on port 80 (no cert,
+#   no trust prompts). NOTE: APP_DOMAIN="localhost" does NOT mean plaintext —
+#   Caddy issues a cert from its internal CA and serves HTTPS for localhost.
+# Production: set APP_DOMAIN to the real FQDN to trigger Let's Encrypt.
+{$APP_DOMAIN} {
+    encode zstd gzip
+
+    @lsp path /lsp*
+    reverse_proxy @lsp bridge:3000
+
+    @api path /healthz /generate
+    reverse_proxy @api bridge:3000
+
+    # Optional: serve a tiny landing page or redirect to the GitHub Pages URL.
+    respond / 200 {
+        body "SymboleoAC bridge OK — see https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-IDE"
+    }
+}

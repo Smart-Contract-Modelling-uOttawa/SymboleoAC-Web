@@ -1,0 +1,87 @@
+{
+	domain: MeatSale
+	argument: {
+				buyerP : {
+					
+						type : Buyer,
+						
+				}
+				sellerP : {
+					
+						type : Seller,
+						
+				}
+				transportCoP : {
+					
+						type : TransportCo,
+						
+				}
+				assessorP : {
+					
+						type : Assessor,
+						
+				}
+				regulatorP : {
+					
+						type : Regulator,
+						
+				}
+				storageP : {
+					
+						type : Storage,
+						
+				}
+				shipperP : {
+					
+						type : Shipper,
+						
+				}
+				adminP : {
+					
+						type : Admin,
+						
+				}
+				barcodeP : {
+					type : String,
+					value : [str1, str2, str3, str4],
+				}
+				qnt : {
+					type : Number,
+					value : [1..1000],
+				}
+				qlt : {
+						type : Enumeration,
+						value : "PRIME","AAA","AA","A"
+					
+				}
+				amt : {
+					type : Number,
+					value : [1..1000],
+				}
+				curr : {
+						type : Enumeration,
+						value : "CAD","USD","EUR"
+					
+				}
+				payDueDate : {
+					type : Date,
+					value : [1..1000],
+				}
+				delAdd : {
+					type : String,
+					value : [str1, str2, str3, str4],
+				}
+				effDate : {
+					type : Date,
+					value : [1..1000],
+				}
+				delDueDateDays : {
+					type : Number,
+					value : [1..1000],
+				}
+				interestRate : {
+					type : Number,
+					value : [1..1000],
+				}
+		}
+}

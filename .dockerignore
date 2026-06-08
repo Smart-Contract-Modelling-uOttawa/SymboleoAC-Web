@@ -1,0 +1,14 @@
+# Build context = repo root (compose context is ..). Keep it lean so the
+# Docker daemon doesn't ship hundreds of MB of deps/outputs on every build.
+**/node_modules
+**/target
+**/bin
+**/test-bin
+**/dist
+bridge/build
+**/.git
+*.log
+**/.DS_Store
+web/.env.local
+# The web frontend is deployed to GitHub Pages, not baked into the bridge image.
+web
