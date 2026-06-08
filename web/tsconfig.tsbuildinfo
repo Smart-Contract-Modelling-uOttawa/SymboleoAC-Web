@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/config.ts","./src/main.tsx","./src/sample.ts","./src/vite-env.d.ts","./src/codegen/diagnosticsview.tsx","./src/codegen/generatedfilesview.tsx","./src/codegen/api.ts","./src/editor/editorpane.tsx","./src/editor/symboleoac.monarch.ts"],"version":"5.7.2"}

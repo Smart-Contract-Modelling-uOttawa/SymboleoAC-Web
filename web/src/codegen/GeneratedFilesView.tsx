@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import * as monaco from '@codingame/monaco-vscode-editor-api';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { GenerateResult } from './api.js';
+import { ensureGeneratedFileLanguages } from './jsHighlight.js';
 
 type Props = {
   result: GenerateResult;
 };
 
 const langFor = (path: string): string => {
-  if (path.endsWith('.js')) return 'javascript';
+  if (path.endsWith('.js') || path.endsWith('.mjs') || path.endsWith('.cjs')) return 'javascript';
   if (path.endsWith('.json')) return 'json';
   return 'plaintext';
 };
@@ -96,6 +98,18 @@ export function GeneratedFilesView({ result }: Props) {
   const paths = useMemo(() => Object.keys(result.files), [result.files]);
   const tree = useMemo(() => buildTree(paths), [paths]);
   const [selected, setSelected] = useState<string | null>(paths[0] ?? null);
+  const [copied, setCopied] = useState(false);
+
+  const copySelected = async () => {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(result.files[selected] ?? '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard blocked (e.g. insecure context) — ignore */
+    }
+  };
 
   // Reset selection when a new generate result arrives.
   useEffect(() => {
@@ -108,6 +122,7 @@ export function GeneratedFilesView({ result }: Props) {
   useEffect(() => {
     if (!editorContainerRef.current) return;
     if (editorRef.current) return;
+    ensureGeneratedFileLanguages(); // register js/json Monarch grammars once
     editorRef.current = monaco.editor.create(editorContainerRef.current, {
       value: '',
       language: 'plaintext',
@@ -144,45 +159,64 @@ export function GeneratedFilesView({ result }: Props) {
   const contractName = paths[0]?.split('/')[0] ?? 'symboleoac-output';
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
-      <aside style={{
-        width: 280,
-        borderRight: '1px solid #333',
-        overflowY: 'auto',
-        background: '#252526',
-        padding: '8px 4px',
-      }}>
-        <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <strong>{paths.length} files</strong>
-          <button
-            type="button"
-            onClick={() => downloadZip(result, contractName)}
-            style={{
-              marginLeft: 'auto',
-              padding: '2px 8px',
-              cursor: 'pointer',
-              background: '#0e639c',
-              color: 'white',
-              border: 'none',
-              borderRadius: 2,
-            }}
-          >
-            Download .zip
-          </button>
+    <PanelGroup direction="horizontal" style={{ height: '100%' }}>
+      <Panel defaultSize={38} minSize={15}>
+        <aside style={{ height: '100%', overflowY: 'auto', background: '#252526', padding: '8px 4px' }}>
+          <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <strong>{paths.length} files</strong>
+            <button
+              type="button"
+              onClick={() => downloadZip(result, contractName)}
+              style={{
+                marginLeft: 'auto',
+                padding: '2px 8px',
+                cursor: 'pointer',
+                background: '#0e639c',
+                color: 'white',
+                border: 'none',
+                borderRadius: 2,
+              }}
+            >
+              Download .zip
+            </button>
+          </div>
+          <TreeView node={tree} selected={selected} onSelect={setSelected} />
+        </aside>
+      </Panel>
+
+      <PanelResizeHandle style={{ width: 4, background: '#333', cursor: 'col-resize' }} />
+
+      <Panel defaultSize={62} minSize={20}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+          <div style={{
+            padding: '4px 8px',
+            background: '#2d2d30',
+            borderBottom: '1px solid #333',
+            font: '12px monospace',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {selected ?? '(no file selected)'}
+            </span>
+            <button
+              type="button"
+              onClick={copySelected}
+              disabled={!selected}
+              title="Copy this file's contents to the clipboard"
+              style={{
+                padding: '2px 8px', cursor: selected ? 'pointer' : 'default',
+                background: copied ? '#2d6a2d' : '#0e639c', color: 'white',
+                border: 'none', borderRadius: 2, font: 'inherit', flex: '0 0 auto',
+              }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <div ref={editorContainerRef} style={{ width: '100%', flex: 1, minHeight: 0 }} />
         </div>
-        <TreeView node={tree} selected={selected} onSelect={setSelected} />
-      </aside>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          padding: '4px 8px',
-          background: '#2d2d30',
-          borderBottom: '1px solid #333',
-          font: '12px monospace',
-        }}>
-          {selected ?? '(no file selected)'}
-        </div>
-        <div ref={editorContainerRef} style={{ width: '100%', height: 'calc(100% - 27px)' }} />
-      </div>
-    </div>
+      </Panel>
+    </PanelGroup>
   );
 }

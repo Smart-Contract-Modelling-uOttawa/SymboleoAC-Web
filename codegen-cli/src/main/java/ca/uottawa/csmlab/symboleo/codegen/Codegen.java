@@ -118,6 +118,15 @@ public final class Codegen {
             sourceBytes = stripped;
         }
 
+        // The upstream Symboleo2SC generator prints debug noise to System.out
+        // (e.g. "assign element=ca.uottawa...OAssignExpressionImpl@...") whenever
+        // a contract uses Assign/OAssignment predicates (VaccineProcurement does;
+        // MeatSale doesn't). That would corrupt the JSON we emit on stdout, so we
+        // divert stdout to stderr for the whole run and restore it only to write
+        // the final JSON. (stderr is surfaced in the bridge logs for debugging.)
+        PrintStream realOut = System.out;
+        System.setOut(System.err);
+
         Injector injector = new SymboleoStandaloneSetup().createInjectorAndDoEMFRegistration();
         // Same plugin.xml-vs-headless validator workaround as cli/Cli.java.
         SymboleoValidator validator = injector.getInstance(SymboleoValidator.class);
@@ -154,7 +163,8 @@ public final class Codegen {
             files = new TreeMap<>(fsa.getTextFiles());
         }
 
-        writeOutput(System.out, files, issues);
+        System.setOut(realOut);
+        writeOutput(realOut, files, issues);
         return hasErrors ? 1 : 0;
     }
 

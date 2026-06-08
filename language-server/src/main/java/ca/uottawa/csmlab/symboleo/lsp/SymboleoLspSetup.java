@@ -1,9 +1,15 @@
 package ca.uottawa.csmlab.symboleo.lsp;
 
+import ca.uottawa.csmlab.symboleo.SymboleoRuntimeModule;
+import ca.uottawa.csmlab.symboleo.ide.SymboleoIdeModule;
 import ca.uottawa.csmlab.symboleo.ide.SymboleoIdeSetup;
 import ca.uottawa.csmlab.symboleo.symboleo.SymboleoPackage;
 import ca.uottawa.csmlab.symboleo.validation.SymboleoValidator;
+import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Module;
+import org.eclipse.xtext.formatting2.IFormatter2;
+import org.eclipse.xtext.util.Modules2;
 import org.eclipse.xtext.validation.EValidatorRegistrar;
 
 /**
@@ -22,6 +28,18 @@ import org.eclipse.xtext.validation.EValidatorRegistrar;
  * would otherwise never fire (same workaround as Cli.java).
  */
 public class SymboleoLspSetup extends SymboleoIdeSetup {
+
+    @Override
+    public Injector createInjector() {
+        // Same mixin as SymboleoIdeSetup (runtime + real IDE module), plus a
+        // third module that binds our document formatter. Modules2.mixin lets a
+        // later module override the default IFormatter2 binding.
+        Module formatterModule = binder -> binder.bind(IFormatter2.class).to(SymboleoFormatter.class);
+        return Guice.createInjector(Modules2.mixin(
+                new SymboleoRuntimeModule(),
+                new SymboleoIdeModule(),
+                formatterModule));
+    }
 
     @Override
     public Injector createInjectorAndDoEMFRegistration() {

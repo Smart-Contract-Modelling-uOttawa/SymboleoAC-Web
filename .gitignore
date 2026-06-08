@@ -6,8 +6,11 @@
 **/bin/
 **/test-bin/
 bridge/build/
+bridge/src-gen/
 web/dist/
+web/.vite/
 *.class
+*.tsbuildinfo
 
 # ─── jars are rebuilt from source; never commit them ────────────────────────
 *.jar

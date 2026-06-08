@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { LogLevel } from '@codingame/monaco-vscode-api';
 import * as monaco from '@codingame/monaco-vscode-editor-api';
 import { MonacoEditorReactComp } from '@typefox/monaco-editor-react';
-import type { EditorAppConfig } from 'monaco-languageclient/editorApp';
+import type { EditorApp, EditorAppConfig } from 'monaco-languageclient/editorApp';
 import type { LanguageClientConfig } from 'monaco-languageclient/lcwrapper';
 import type { MonacoVscodeApiConfig } from 'monaco-languageclient/vscodeApiWrapper';
 import { LSP_URL } from '../config.js';
@@ -17,6 +17,9 @@ type Props = {
   initialCode: string;
   initialName: string;
   onTextChanged: (text: string) => void;
+  /** Fires once the editor exists, handing back the Monaco editor instance so
+   *  the parent can push content into it (sample switch, file open). */
+  onEditorReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
 };
 
 const FILE_URI_PREFIX = 'file:///workspace/';
@@ -31,7 +34,7 @@ const vscodeApiConfig: MonacoVscodeApiConfig = {
   logLevel: LogLevel.Warning,
 };
 
-export function EditorPane({ initialCode, initialName, onTextChanged }: Props) {
+export function EditorPane({ initialCode, initialName, onTextChanged, onEditorReady }: Props) {
   // Memoize configs so the underlying wrapper isn't torn down on every render.
   const editorAppConfig: EditorAppConfig = useMemo(() => ({
     id: 'symboleoac-main',
@@ -54,7 +57,8 @@ export function EditorPane({ initialCode, initialName, onTextChanged }: Props) {
     editorOptions: {
       automaticLayout: true,
       minimap: { enabled: false },
-      tabSize: 2,
+      tabSize: 3,          // SymboleoAC formatter indents 3 spaces; LSP honors this
+      insertSpaces: true,
       fontSize: 13,
       scrollBeyondLastLine: false,
       theme: 'vs-dark',
@@ -88,14 +92,16 @@ export function EditorPane({ initialCode, initialName, onTextChanged }: Props) {
     if (typeof txt.modified === 'string') onTextChanged(txt.modified);
   }, [onTextChanged]);
 
-  const handleEditorStartDone = useCallback(() => {
+  const handleEditorStartDone = useCallback((editorApp?: EditorApp) => {
     // The languageDef registers the Monarch grammar + language; configuration
     // (brackets, autoclosing pairs, comments) is set separately on monaco.languages.
     monaco.languages.setLanguageConfiguration(
       SYMBOLEOAC_LANGUAGE_ID,
       symboleoacLanguageConfiguration,
     );
-  }, []);
+    const editor = editorApp?.getEditor();
+    if (editor) onEditorReady?.(editor);
+  }, [onEditorReady]);
 
   return (
     <MonacoEditorReactComp
