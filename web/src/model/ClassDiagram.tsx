@@ -95,7 +95,7 @@ export function ClassDiagram({ model }: { model: ContractModel | null }) {
     </div>
   );
 
-  return <MermaidView def={def} legend={legend} />;
+  return <MermaidView def={def} legend={legend} saveName={`${model.contractName || 'contract'}-domain`} />;
 }
 
 function Msg({ children }: { children: React.ReactNode }) {

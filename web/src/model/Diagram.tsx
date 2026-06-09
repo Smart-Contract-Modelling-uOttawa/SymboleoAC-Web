@@ -83,7 +83,8 @@ export function Diagram({ model }: { model: ContractModel | null }) {
     </div>
   );
 
-  return <MermaidView def={built?.def ?? null} onRendered={onRendered} legend={legend} />;
+  return <MermaidView def={built?.def ?? null} onRendered={onRendered} legend={legend}
+    saveName={`${model.contractName || 'contract'}-rules`} />;
 }
 
 function Msg({ children }: { children: React.ReactNode }) {

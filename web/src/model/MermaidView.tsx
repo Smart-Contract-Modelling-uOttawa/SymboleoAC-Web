@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import { saveBlobAs } from '../fileio.js';
 
 let seq = 0;
 
@@ -18,10 +19,11 @@ const btn: React.CSSProperties = {
  * rather than the layout being squeezed. `onRendered` runs after each render
  * (e.g. to inject hover tooltips).
  */
-export function MermaidView({ def, onRendered, legend }: {
+export function MermaidView({ def, onRendered, legend, saveName }: {
   def: string | null;
   onRendered?: (el: HTMLElement) => void;
   legend?: React.ReactNode;
+  saveName?: string; // base filename (no extension) for the Save button
 }) {
   const hostRef = useRef<HTMLDivElement>(null);   // scroll viewport
   const holderRef = useRef<HTMLDivElement>(null); // holds the <svg>
@@ -78,6 +80,20 @@ export function MermaidView({ def, onRendered, legend }: {
 
   const clamp = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
+  // Export the rendered diagram as a standalone SVG at its natural size.
+  const saveSvg = () => {
+    const live = holderRef.current?.querySelector('svg');
+    if (!live) return;
+    const s = live.cloneNode(true) as SVGSVGElement;
+    if (natW > 0) { s.setAttribute('width', String(Math.round(natW))); s.style.removeProperty('width'); }
+    s.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    s.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    const xml = new XMLSerializer().serializeToString(s);
+    const doc = `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+    const blob = new Blob([doc], { type: 'image/svg+xml;charset=utf-8' });
+    void saveBlobAs(`${saveName || 'diagram'}.svg`, blob, { 'image/svg+xml': ['.svg'] });
+  };
+
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       {legend}
@@ -87,6 +103,7 @@ export function MermaidView({ def, onRendered, legend }: {
         <button type="button" style={{ ...btn, width: 'auto', padding: '0 6px' }} title="Fit width" onClick={() => setZoom(clamp(fitWidth()))}>Fit</button>
         <button type="button" style={{ ...btn, width: 'auto', padding: '0 6px' }} title="Actual size" onClick={() => setZoom(1)}>1:1</button>
         <span style={{ color: '#9cdcfe', fontSize: 11, marginLeft: 4 }}>{Math.round(zoom * 100)}%</span>
+        <button type="button" style={{ ...btn, width: 'auto', padding: '0 8px', marginLeft: 'auto' }} title="Save diagram as SVG" onClick={saveSvg}>Save</button>
       </div>
       {error && <div style={{ color: '#f48771', fontSize: 12, padding: '0 8px' }}>diagram error: {error}</div>}
       <div ref={hostRef} style={{ flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box', overflow: 'auto', padding: 10 }}>

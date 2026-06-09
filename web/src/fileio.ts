@@ -64,6 +64,46 @@ function download(name: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
+function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Save an arbitrary blob (e.g. an exported SVG diagram or a CSV) to disk.
+ * Uses the FS Access picker when available; otherwise triggers a download.
+ * `accept` is a {mime: [".ext"]} map for the picker's type filter.
+ */
+export async function saveBlobAs(
+  name: string,
+  blob: Blob,
+  accept: Record<string, string[]>,
+): Promise<boolean> {
+  if (hasFsAccess()) {
+    try {
+      const h: FileSystemFileHandle = await (window as any).showSaveFilePicker({
+        suggestedName: name,
+        types: [{ accept }],
+      });
+      const writable = await (h as any).createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') return false;
+      throw e;
+    }
+  }
+  downloadBlob(name, blob);
+  return true;
+}
+
 /**
  * Save `text` to `handle` in place when given (file opened via FS Access API);
  * otherwise behaves like Save As. Returns the handle/name actually used.
