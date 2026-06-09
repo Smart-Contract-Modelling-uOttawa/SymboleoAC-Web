@@ -14,10 +14,20 @@
 
 ![SymboleoAC Web IDE screenshot](docs/screenshot.png)
 
-*The IDE at a glance — three resizable panels:*
-1. **Editor (left):** your SymboleoAC contract with syntax highlighting and live red‑squiggle diagnostics. Here the `MeatSale` example is open.
-2. **Generated files (middle):** after clicking **Generate JS**, the multi‑file JavaScript package appears as a navigable tree (`domain/contract`, `domain/roles`, `domain/events`, …) with a **Download .zip** button.
-3. **File viewer (right):** the selected generated file, JavaScript‑syntax‑highlighted and read‑only, with a one‑click **Copy**.
+*The IDE at a glance — resizable panels:*
+1. **Outline (far left):** the contract's structure — Domain and Declarations broken down by category (Roles, Assets, Events, …), plus Obligations, Powers, and the AC Policy. Sections expand/collapse and every entry is clickable to jump to it in the editor.
+2. **Editor:** your SymboleoAC contract with syntax highlighting and live red‑squiggle diagnostics. Here the `MeatSale` example is open.
+3. **Generated files:** after clicking **Generate JS**, the multi‑file JavaScript package appears as a navigable tree (`domain/contract`, `domain/roles`, `domain/events`, …) with a **Download .zip** button.
+4. **File viewer (right):** the selected generated file, JavaScript‑syntax‑highlighted and read‑only, with a one‑click **Copy**.
+
+### Visualize the model
+
+Beyond the editor, three tabs turn the contract into interactive diagrams — all auto‑generated from the live model as you type.
+
+| Domain class diagram | Rules network | Policy matrix |
+|---|---|---|
+| [![Domain view](docs/screenshot-domain.png)](docs/screenshot-domain.png) | [![Rules view](docs/screenshot-rules.png)](docs/screenshot-rules.png) | [![Policy view](docs/screenshot-policy.png)](docs/screenshot-policy.png) |
+| **Domain** — the domain ontology as a UML class diagram, colour‑coded by category (roles, assets, events, data transfers, enumerations), with inheritance, stereotypes, and named associations. Zoom and pan; relayouts to fill the panel. | **Rules** — access‑control rules as a colour‑coded network: parties with their obligations/powers, and rules pointing to their target role (green = Grant, red = Revoke). Hover a rule for the *On*/*by* details. | **Policy** — the access‑control policy as a roles × resources matrix, with ✓ Grant (green) / ✗ Revoke (red). |
 
 ---
 
@@ -34,7 +44,11 @@
 | 7 | **Built‑in examples** | Start instantly from real contracts (`MeatSale`, `VaccineProcurement`) via the **Example** dropdown. |
 | 8 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
 | 9 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
-| 10 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
+| 10 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
+| 11 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
+| 12 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
+| 13 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
+| 14 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
 
 ---
 
@@ -43,8 +57,11 @@
 1. **Open the app:** <https://smart-contract-modelling-uottawa.github.io/SymboleoAC-Web/>
 2. **Start from an example** (Example dropdown) or **Open…** a `.symboleo` file from your computer.
 3. **Edit** — diagnostics update live; <kbd>Ctrl</kbd>+<kbd>Space</kbd> for completion; <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> to format.
-4. **Generate JS** — click the button; browse the generated files in the middle panel; **Copy** a file or **Download .zip**.
-5. **Save** / **Save As…** your contract back to disk.
+4. **Navigate** with the **Outline** — click any element to jump to it; expand/collapse the sections.
+5. **Visualize** — switch to the **Domain**, **Rules**, or **Policy** tabs to see the model as diagrams (zoom and hover for detail).
+6. **Generate JS** — click the button; browse the generated files; **Copy** a file or **Download .zip**.
+7. **Share** — click **Share** to copy a self‑contained link to the current contract.
+8. **Save** / **Save As…** your contract back to disk.
 
 > **Browser note:** *Save in place* and *Open* use the File System Access API (Chrome & Edge). Firefox/Safari fall back to a normal file‑open dialog and a download for saving. Everything else works in all modern browsers.
 
@@ -69,6 +86,7 @@
    │ Node bridge (Express + ws)                    │
    │  • /lsp      → spawns an Xtext LSP per session │
    │  • /generate → runs the JS code‑gen CLI        │
+   │  • /model    → extracts the structured model   │
    └───────────────┬──────────────────────────────┘
                    │ child process (stdio / stdin‑stdout)
    ┌───────────────▼──────────────────────────────┐
@@ -78,8 +96,8 @@
 ```
 
 - **Front end** — Vite + React + Monaco via `monaco-languageclient` v10. Syntax highlighting comes from a Monarch grammar auto‑extracted from the upstream `.xtext` grammar at build time.
-- **Bridge** — a small Node service that pipes LSP JSON‑RPC over a WebSocket to a per‑session `java` language server, and exposes `POST /generate`.
-- **Language tooling** — two self‑contained jars built from the vendored [`SymboleoAC-IDE`](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-IDE) sources: the Xtext LSP server, and a headless JavaScript generator (`Symboleo2SC`).
+- **Bridge** — a small Node service that pipes LSP JSON‑RPC over a WebSocket to a per‑session `java` language server, and exposes `POST /generate` (JS code‑gen) and `POST /model` (structured model for the Outline and diagrams).
+- **Language tooling** — two self‑contained jars built from the vendored [`SymboleoAC-IDE`](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-IDE) sources: the Xtext LSP server, and a headless CLI that both generates JavaScript (`Symboleo2SC`) and extracts the structured model (`--model`) used by the Outline and diagrams.
 - **TLS** — Caddy terminates HTTPS/WSS and auto‑provisions a Let's Encrypt certificate.
 
 ---
@@ -165,8 +183,8 @@ node bridge/test-generate.mjs                              # POST /generate
 | `JVM_XMX` | `512m` | heap per session |
 | `ALLOW_ORIGIN` | `*` | CORS origin for `/generate` (lock to the Pages origin in prod) |
 | `IDLE_TIMEOUT_MS` | `600000` | reap idle LSP sessions |
-| `RATE_MAX` / `RATE_WINDOW_MS` | `20` / `60000` | per‑IP rate limit on `/generate` |
-| `MAX_CONCURRENT_GEN` | `4` | cap on simultaneous code‑gen processes |
+| `RATE_MAX` / `RATE_WINDOW_MS` | `20` / `60000` | per‑IP rate limit on `/generate` and `/model` |
+| `MAX_CONCURRENT_GEN` | `4` | cap on simultaneous code‑gen / model processes |
 
 Full list and endpoint docs: [`bridge/README.md`](bridge/README.md).
 
