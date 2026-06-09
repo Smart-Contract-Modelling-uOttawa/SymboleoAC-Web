@@ -69,6 +69,7 @@ public final class Codegen {
     private static int run(String[] args) throws Exception {
         Path inPath = null;
         String virtualName = "input.symboleo";
+        boolean modelMode = false;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -79,6 +80,12 @@ public final class Codegen {
                 case "--name":
                 case "-n":
                     virtualName = args[++i];
+                    break;
+                case "--model":
+                case "-m":
+                    // Emit a structured JSON summary (for the Outline/diagram/matrix)
+                    // instead of generating code.
+                    modelMode = true;
                     break;
                 case "--help":
                 case "-h":
@@ -143,6 +150,19 @@ public final class Codegen {
         Resource resource = rs.createResource(uri);
         try (InputStream in = new ByteArrayInputStream(sourceBytes)) {
             resource.load(in, Collections.emptyMap());
+        }
+
+        if (modelMode) {
+            // Best-effort structured summary, even if the contract has errors.
+            System.setOut(realOut);
+            String src = new String(sourceBytes, StandardCharsets.UTF_8);
+            org.json.JSONObject model = new org.json.JSONObject();
+            for (EObject root : resource.getContents()) {
+                if (root instanceof Model) { model = ModelJson.build((Model) root, src); break; }
+            }
+            realOut.print(model.toString());
+            realOut.flush();
+            return 0;
         }
 
         IResourceValidator resourceValidator = injector.getInstance(IResourceValidator.class);

@@ -176,6 +176,51 @@ app.post('/generate', rateLimit, (req, res) => {
   proc.stdin.end();
 });
 
+// Structured contract summary for the Outline / model diagram / access-control
+// matrix. Best-effort: the CLI returns a model even when the contract has
+// validation errors, so the outline keeps working while editing.
+app.post('/model', rateLimit, (req, res) => {
+  const source = typeof req.body?.source === 'string' ? req.body.source : '';
+  if (!source) {
+    res.status(400).json({ error: 'missing "source" string in JSON body' });
+    return;
+  }
+  if (activeGenerations >= MAX_CONCURRENT_GEN) {
+    res.setHeader('Retry-After', '2');
+    res.status(503).json({ error: 'server busy' });
+    return;
+  }
+  activeGenerations++;
+  const proc = spawn('java', ['-jar', CODEGEN_JAR, '--model'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  let stderr = '';
+  let settled = false;
+  const finish = (status: number, body: object) => {
+    if (settled) return;
+    settled = true;
+    activeGenerations = Math.max(0, activeGenerations - 1);
+    clearTimeout(timer);
+    res.status(status).json(body);
+  };
+  const timer = setTimeout(() => {
+    proc.kill('SIGKILL');
+    finish(504, { error: 'model timed out', timeoutMs: GEN_TIMEOUT_MS });
+  }, GEN_TIMEOUT_MS);
+  proc.stdout.on('data', (d) => { stdout += d.toString('utf8'); });
+  proc.stderr.on('data', (d) => { stderr += d.toString('utf8'); });
+  proc.on('error', (err) => finish(500, { error: 'failed to spawn model extractor', detail: String(err) }));
+  proc.on('close', (code) => {
+    if (code === 0) {
+      try { finish(200, JSON.parse(stdout)); }
+      catch { finish(500, { error: 'model returned non-JSON', stdout: stdout.slice(0, 4000), stderr: stderr.slice(0, 4000) }); }
+      return;
+    }
+    finish(500, { error: 'model extractor exited with code ' + code, stderr: stderr.slice(0, 4000) });
+  });
+  proc.stdin.write(source);
+  proc.stdin.end();
+});
+
 const server = createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 

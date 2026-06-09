@@ -53,6 +53,8 @@ Language registered via `META-INF/services/org.eclipse.xtext.ISetup` →
 | `vscode-ws-jsonrpc` | 3.4.0 | |
 | `vscode-jsonrpc` | 8.2.1 | |
 | `jszip` | 3.10.1 | for codegen download |
+| `react-resizable-panels` | 2.1.7 | resizable editor/outline/viewer panels |
+| `mermaid` | 11.4.1 | model diagram rendering |
 | `react` / `react-dom` | 18.3.1 | |
 | `vite` | 5.4.10 | |
 | `@vitejs/plugin-react` | 4.3.4 | |
