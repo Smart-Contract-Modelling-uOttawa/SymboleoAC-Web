@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { ContractModel } from './api.js';
 import { MermaidView } from './MermaidView.js';
 
@@ -80,61 +80,9 @@ function buildDefinition(model: ContractModel): string {
   return [...lines, ...styles].join('\n');
 }
 
-/**
- * Trim the empty "operations" compartment from class boxes.
- *
- * Mermaid 11's classBox draws a second compartment (and its divider) for every
- * class that has attributes, even when it has no methods — and
- * `hideEmptyMembersBox` only suppresses it for *fully* empty classes. Our domain
- * classes never have methods, so we remove that empty box after render: drop the
- * lower divider and replace the rounded container with a rect trimmed to the
- * attributes. Defensive (per-node try/catch) so a mermaid layout change just
- * leaves the diagram untouched rather than breaking it.
- */
-function trimEmptyOperationsBoxes(el: HTMLElement) {
-  const nodes = el.querySelectorAll<SVGGElement>('g.node');
-  nodes.forEach((node) => {
-    try {
-      const dividers = node.querySelectorAll<SVGGElement>('.divider');
-      if (dividers.length < 2) return; // title-only or already compact
-      const container = node.querySelector<SVGGraphicsElement>('.label-container');
-      if (!container) return;
-      const cbox = container.getBBox();
-      const lastDivider = dividers[dividers.length - 1];
-      const dbox = lastDivider.getBBox();        // divider at the attributes' bottom
-      const PAD = 8;
-      const newHeight = dbox.y + PAD - cbox.y;
-      if (newHeight <= 0 || newHeight >= cbox.height - 1) return; // nothing to trim
-
-      // Reproduce the container's fill/stroke on a plain rect (mermaid renders it
-      // as roughjs paths with roughness 0, i.e. visually a plain rectangle).
-      let fill = '#ffffff', stroke = '#999999', sw = '1';
-      container.querySelectorAll('path').forEach((p) => {
-        const cs = getComputedStyle(p);
-        if (cs.fill && cs.fill !== 'none' && fill === '#ffffff') fill = cs.fill;
-        if (cs.stroke && cs.stroke !== 'none') { stroke = cs.stroke; sw = cs.strokeWidth || sw; }
-      });
-      const ns = 'http://www.w3.org/2000/svg';
-      const rect = document.createElementNS(ns, 'rect');
-      rect.setAttribute('x', String(cbox.x));
-      rect.setAttribute('y', String(cbox.y));
-      rect.setAttribute('width', String(cbox.width));
-      rect.setAttribute('height', String(newHeight));
-      rect.setAttribute('fill', fill);
-      rect.setAttribute('stroke', stroke);
-      rect.setAttribute('stroke-width', sw);
-      rect.setAttribute('class', 'label-container');
-      container.replaceWith(rect); // stays first child, behind the text
-      lastDivider.remove();
-      node.querySelector('.methods-group')?.remove();
-    } catch { /* leave this node as-is if we can't measure it */ }
-  });
-}
-
 export function ClassDiagram({ model }: { model: ContractModel | null }) {
   const hasTypes = !!model && (model.domainModel.types.length + model.domainModel.enums.length) > 0;
   const def = useMemo(() => (model && hasTypes ? buildDefinition(model) : null), [model, hasTypes]);
-  const onRendered = useCallback((el: HTMLElement) => trimEmptyOperationsBoxes(el), []);
 
   if (!model) return <Msg>The domain class diagram appears after the model loads.</Msg>;
   if (!hasTypes) return <Msg>No domain types to diagram yet.</Msg>;
@@ -147,8 +95,7 @@ export function ClassDiagram({ model }: { model: ContractModel | null }) {
     </div>
   );
 
-  return <MermaidView def={def} legend={legend} onRendered={onRendered}
-    saveName={`${model.contractName || 'contract'}-domain`} />;
+  return <MermaidView def={def} legend={legend} saveName={`${model.contractName || 'contract'}-domain`} />;
 }
 
 function Msg({ children }: { children: React.ReactNode }) {
