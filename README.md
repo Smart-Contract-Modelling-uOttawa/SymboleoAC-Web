@@ -38,17 +38,18 @@ Beyond the editor, three tabs turn the contract into interactive diagrams — al
 | 1 | **Real Xtext language server** | The same engine as the Eclipse plugin runs behind the page — not a watered‑down web imitation. |
 | 2 | **Live validation** | Type a contract and see errors/warnings instantly as red & yellow squiggles, straight from SymboleoAC's own `@Check` rules. |
 | 3 | **Context‑aware completion** | Press <kbd>Ctrl</kbd>+<kbd>Space</kbd> for grammar‑correct suggestions — keywords, roles, events, obligation references. |
-| 4 | **Instant syntax highlighting** | Keywords, types, operators and comments are colourised the moment the page loads (no server round‑trip needed). |
-| 5 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
-| 6 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
-| 7 | **Built‑in examples** | Start instantly from real contracts (`MeatSale`, `VaccineProcurement`) via the **Example** dropdown. |
-| 8 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
-| 9 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
-| 10 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
-| 11 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
-| 12 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
-| 13 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
-| 14 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
+| 4 | **Signature help** | Typing inside a call shows its parameters with the active one highlighted — obligation/power constructors (`O`/`P`), predicates (`Happens`, `Occurs`, …), and `Math`/`String`/`Date` functions. |
+| 5 | **Instant syntax highlighting** | Keywords, types, operators and comments are colourised the moment the page loads (no server round‑trip needed). |
+| 6 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
+| 7 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
+| 8 | **Built‑in examples** | Start instantly from real contracts (`MeatSale`, `VaccineProcurement`) via the **Example** dropdown. |
+| 9 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
+| 10 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
+| 11 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
+| 12 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
+| 13 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
+| 14 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
+| 15 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
 
 ---
 
@@ -56,7 +57,7 @@ Beyond the editor, three tabs turn the contract into interactive diagrams — al
 
 1. **Open the app:** <https://smart-contract-modelling-uottawa.github.io/SymboleoAC-Web/>
 2. **Start from an example** (Example dropdown) or **Open…** a `.symboleo` file from your computer.
-3. **Edit** — diagnostics update live; <kbd>Ctrl</kbd>+<kbd>Space</kbd> for completion; <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> to format.
+3. **Edit** — diagnostics update live; <kbd>Ctrl</kbd>+<kbd>Space</kbd> for completion; parameter hints appear inside calls (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> to force); <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> to format.
 4. **Navigate** with the **Outline** — click any element to jump to it; expand/collapse the sections.
 5. **Visualize** — switch to the **Domain**, **Rules**, or **Policy** tabs to see the model as diagrams (zoom and hover for detail).
 6. **Generate JS** — click the button; browse the generated files; **Copy** a file or **Download .zip**.

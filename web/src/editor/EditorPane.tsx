@@ -12,6 +12,7 @@ import {
   symboleoacLanguageConfiguration,
   symboleoacMonarchLanguage,
 } from './symboleoac.monarch.js';
+import { registerSymboleoacSignatureHelp } from './signatureHelp.js';
 
 type Props = {
   initialCode: string;
@@ -99,6 +100,7 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       SYMBOLEOAC_LANGUAGE_ID,
       symboleoacLanguageConfiguration,
     );
+    registerSymboleoacSignatureHelp(monaco, SYMBOLEOAC_LANGUAGE_ID);
     const editor = editorApp?.getEditor();
     if (editor) onEditorReady?.(editor);
   }, [onEditorReady]);
