@@ -83,41 +83,47 @@ ${bodyRows}
     void saveBlobAs(`${model.contractName || 'contract'}-policy.html`, blob, { 'text/html': ['.html'] });
   };
 
+  // Same structure as the diagram views (MermaidView): a flex-column root with a
+  // fixed header and a dedicated flex:1 scroller. The scroller — not a plain
+  // height:100% block — is what reliably gives the wide table a horizontal
+  // scrollbar inside the resizable panel.
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+    <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px 6px' }}>
         <div style={{ color: '#9cdcfe', fontSize: 11 }}>
           Access-control matrix — roles (rows) × resources (columns).
           {model.acControllers.length > 0 && <> Policy controller: <b>{model.acControllers.join(', ')}</b>.</>}
         </div>
         <button type="button" style={{ ...saveBtn, marginLeft: 'auto' }} title="Save matrix as a formatted HTML file" onClick={saveHtml}>Save</button>
       </div>
-      <table style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={head}>role \ resource</th>
-            {resources.map((res) => <th key={res} style={head}>{res}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {roles.map((role) => (
-            <tr key={role}>
-              <td style={{ ...cell, color: '#d4d4d4', fontWeight: 600 }}>{role}</td>
-              {resources.map((res) => (
-                <td key={res} style={cell}>
-                  {at(role, res).map((r, i) => (
-                    <div key={i} title={`rule ${r.name}, by ${r.controller}`}>
-                      <span style={{ color: r.action === 'Grant' ? '#a6e22e' : '#f48771' }}>
-                        {r.action === 'Grant' ? '✓' : '✗'} {r.permission}
-                      </span>
-                    </div>
-                  ))}
-                </td>
-              ))}
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', boxSizing: 'border-box', overflow: 'auto', padding: '0 10px 10px' }}>
+        <table style={{ borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={head}>role \ resource</th>
+              {resources.map((res) => <th key={res} style={head}>{res}</th>)}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {roles.map((role) => (
+              <tr key={role}>
+                <td style={{ ...cell, color: '#d4d4d4', fontWeight: 600 }}>{role}</td>
+                {resources.map((res) => (
+                  <td key={res} style={cell}>
+                    {at(role, res).map((r, i) => (
+                      <div key={i} title={`rule ${r.name}, by ${r.controller}`}>
+                        <span style={{ color: r.action === 'Grant' ? '#a6e22e' : '#f48771' }}>
+                          {r.action === 'Grant' ? '✓' : '✗'} {r.permission}
+                        </span>
+                      </div>
+                    ))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
