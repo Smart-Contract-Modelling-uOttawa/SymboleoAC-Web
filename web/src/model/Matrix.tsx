@@ -1,7 +1,10 @@
 import type { ContractModel } from './api.js';
 import { saveBlobAs } from '../fileio.js';
 
-const cell: React.CSSProperties = { border: '1px solid #3a3d41', padding: '4px 8px', fontSize: 12, verticalAlign: 'top' };
+// nowrap keeps each cell on one line so the table takes its natural width and
+// the container's overflow:auto provides a horizontal scrollbar (instead of the
+// text wrapping and squeezing the table to fit).
+const cell: React.CSSProperties = { border: '1px solid #3a3d41', padding: '4px 8px', fontSize: 12, verticalAlign: 'top', whiteSpace: 'nowrap' };
 const head: React.CSSProperties = { ...cell, background: '#2d2d30', color: '#9cdcfe', position: 'sticky', top: 0 };
 const saveBtn: React.CSSProperties = {
   padding: '2px 10px', background: '#3a3d41', color: '#fff', border: '1px solid #555',
