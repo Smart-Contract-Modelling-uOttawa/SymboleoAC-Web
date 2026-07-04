@@ -7266,6 +7266,16 @@ public class Symboleo2SC extends SymboleoGenerator {
         _builder.newLineIfNotEmpty();
         _builder.append("  ");
         _builder.append("      ");
+        _builder.append("const isNewInstance =  contract.survivingObligations.");
+        String _name_survInst1 = obligation_1.getName();
+        _builder.append(_name_survInst1, "        ");
+        _builder.append(" != null && contract.survivingObligations.");
+        String _name_survInst2 = obligation_1.getName();
+        _builder.append(_name_survInst2, "        ");
+        _builder.append(".isFinished()");
+        _builder.newLineIfNotEmpty();
+        _builder.append("  ");
+        _builder.append("      ");
         _builder.append("contract.survivingObligations.");
         String _name_22 = obligation_1.getName();
         _builder.append(_name_22, "        ");

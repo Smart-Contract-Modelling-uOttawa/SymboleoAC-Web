@@ -2558,6 +2558,7 @@ def void generateNPMFile(IFileSystemAccess2 fsa, Model model) {
           createSurvivingObligation_«obligation.name»(contract) {
             if («generatePropositionString(obligation.trigger)») { «"\n"+generatePropositionAssignString(obligation.trigger)»
               if (contract.survivingObligations.«obligation.name» == null || contract.survivingObligations.«obligation.name».isFinished()) {
+                const isNewInstance =  contract.survivingObligations.«obligation.name» != null && contract.survivingObligations.«obligation.name».isFinished()
                 contract.survivingObligations.«obligation.name» = new Obligation('«obligation.name»', «generateDotExpressionString(obligation.creditor, 'contract')», «generateDotExpressionString(obligation.debtor, 'contract')», contract,null, true)
                  «getSpecifiedControllerObligation(obligation,"contract")»
                  «getSpecifiedRulesCondObligation(obligation, model)»
