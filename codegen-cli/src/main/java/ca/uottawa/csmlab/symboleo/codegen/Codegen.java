@@ -24,12 +24,14 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -183,14 +185,92 @@ public final class Codegen {
             files = new TreeMap<>(fsa.getTextFiles());
         }
 
+        List<JSONObject> jsIssues = checkGeneratedJs(files);
+
         System.setOut(realOut);
-        writeOutput(realOut, files, issues);
-        return hasErrors ? 1 : 0;
+        writeOutput(realOut, files, issues, jsIssues);
+        return (hasErrors || !jsIssues.isEmpty()) ? 1 : 0;
+    }
+
+    /**
+     * Generated-JS self-check: parse every emitted .js with `node --check`.
+     * The Symboleo validation can pass while the emitted JavaScript is
+     * unparseable (e.g. SymboleoAC2SC#3, arithmetic in a consequent), and
+     * such defects otherwise surface only at deployment. Reported as ERROR
+     * issues so they fail this gate. Requires `node` on PATH (the bridge
+     * image ships it); if unavailable the check is skipped with a note on
+     * stderr.
+     */
+    private static List<JSONObject> checkGeneratedJs(Map<String, CharSequence> files) {
+        List<JSONObject> problems = new ArrayList<>();
+        Path tmpDir = null;
+        try {
+            int n = 0;
+            for (Map.Entry<String, CharSequence> e : files.entrySet()) {
+                String name = stripOutputSlot(e.getKey());
+                if (!name.endsWith(".js")) {
+                    continue;
+                }
+                if (tmpDir == null) {
+                    tmpDir = Files.createTempDirectory("symboleoac-jscheck");
+                }
+                // Flat, collision-free file names; no package.json in the
+                // temp dir, so node parses them as CommonJS like the runtime.
+                Path jsFile = tmpDir.resolve(
+                        (n++) + "-" + name.substring(name.lastIndexOf('/') + 1));
+                Files.write(jsFile, e.getValue().toString().getBytes(StandardCharsets.UTF_8));
+
+                Process p = new ProcessBuilder("node", "--check", jsFile.toString())
+                        .redirectErrorStream(true).start();
+                String nodeOut = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                int exit = p.waitFor();
+                if (exit != 0) {
+                    String detail = nodeOut.replace(jsFile.toString(), name).trim();
+                    if (detail.length() > 600) {
+                        detail = detail.substring(0, 600) + " [...]";
+                    }
+                    JSONObject o = new JSONObject();
+                    o.put("severity", "ERROR");
+                    o.put("line", JSONObject.NULL);
+                    o.put("column", JSONObject.NULL);
+                    o.put("offset", JSONObject.NULL);
+                    o.put("length", JSONObject.NULL);
+                    o.put("message", "Generated JavaScript is not parseable (node --check): "
+                            + name + ". The .symboleo source passed validation, so this "
+                            + "is a defect in the code generator, not in the contract "
+                            + "specification: do NOT rewrite the contract to work around "
+                            + "it. Report the details below upstream (SymboleoAC2SC / "
+                            + "SymboleoAC-IDE); as a stopgap, a construct near the "
+                            + "location shown can be simplified to avoid triggering the "
+                            + "generator bug.\n" + detail);
+                    o.put("code", "generated-js-syntax");
+                    problems.add(o);
+                }
+            }
+        } catch (IOException e) {
+            // Typically: node not on PATH. The check is best-effort by design.
+            System.err.println("note: generated-JS self-check skipped ("
+                    + e.getMessage() + ")");
+            problems.clear();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            problems.clear();
+        } finally {
+            if (tmpDir != null) {
+                try (var walk = Files.walk(tmpDir)) {
+                    walk.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(pth -> pth.toFile().delete());
+                } catch (IOException ignored) {
+                }
+            }
+        }
+        return problems;
     }
 
     private static void writeOutput(PrintStream out,
                                     Map<String, CharSequence> files,
-                                    List<Issue> issues) {
+                                    List<Issue> issues,
+                                    List<JSONObject> jsIssues) {
         JSONObject root = new JSONObject();
         JSONObject filesObj = new JSONObject();
         for (Map.Entry<String, CharSequence> e : files.entrySet()) {
@@ -215,6 +295,10 @@ public final class Codegen {
             issuesArr.put(o);
             if (i.getSeverity() == Severity.ERROR) errors++;
             else if (i.getSeverity() == Severity.WARNING) warnings++;
+        }
+        for (JSONObject o : jsIssues) {
+            issuesArr.put(o);
+            errors++;
         }
         root.put("issues", issuesArr);
 

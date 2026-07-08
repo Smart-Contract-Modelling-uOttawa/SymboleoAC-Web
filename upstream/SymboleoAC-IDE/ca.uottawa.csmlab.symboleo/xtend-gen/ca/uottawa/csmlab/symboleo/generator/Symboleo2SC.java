@@ -8650,16 +8650,12 @@ public class Symboleo2SC extends SymboleoGenerator {
       if (proposition instanceof PArithmetic) {
         _matched=true;
         String _generateLegalpositionCondition = this.generateLegalpositionCondition(((PArithmetic)proposition).getLeft(), addAC);
-        String _plus = ((addAC + "{ leftSide:\'") + _generateLegalpositionCondition);
-        String _plus_1 = (_plus + "\', op:\'");
+        String _plus = (_generateLegalpositionCondition + " ");
         String _op = ((PArithmetic)proposition).getOp();
-        String _plus_2 = (_plus_1 + _op);
-        String _plus_3 = (_plus_2 + "\',  ");
-        String _plus_4 = (_plus_3 + 
-          " rightSide: \'");
+        String _plus_1 = (_plus + _op);
+        String _plus_2 = (_plus_1 + " ");
         String _generateLegalpositionCondition_1 = this.generateLegalpositionCondition(((PArithmetic)proposition).getRight(), addAC);
-        String _plus_5 = (_plus_4 + _generateLegalpositionCondition_1);
-        return (_plus_5 + "\', _type: \'Condition\'})\n");
+        return (_plus_2 + _generateLegalpositionCondition_1);
       }
     }
     if (!_matched) {
