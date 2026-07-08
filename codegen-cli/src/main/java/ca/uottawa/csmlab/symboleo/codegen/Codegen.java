@@ -236,7 +236,13 @@ public final class Codegen {
                     o.put("offset", JSONObject.NULL);
                     o.put("length", JSONObject.NULL);
                     o.put("message", "Generated JavaScript is not parseable (node --check): "
-                            + name + "\n" + detail);
+                            + name + ". The .symboleo source passed validation, so this "
+                            + "is a defect in the code generator, not in the contract "
+                            + "specification: do NOT rewrite the contract to work around "
+                            + "it. Report the details below upstream (SymboleoAC2SC / "
+                            + "SymboleoAC-IDE); as a stopgap, a construct near the "
+                            + "location shown can be simplified to avoid triggering the "
+                            + "generator bug.\n" + detail);
                     o.put("code", "generated-js-syntax");
                     problems.add(o);
                 }
