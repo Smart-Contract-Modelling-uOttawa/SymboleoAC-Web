@@ -42,7 +42,7 @@ Beyond the editor, three tabs turn the contract into interactive diagrams — al
 | 5 | **Instant syntax highlighting** | Keywords, types, operators and comments are colourised the moment the page loads (no server round‑trip needed). |
 | 6 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
 | 7 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
-| 8 | **Built‑in examples** | Start instantly from real contracts (`MeatSale`, `VaccineProcurement`) via the **Example** dropdown. |
+| 8 | **Built‑in examples & tutorial** | Start instantly from real contracts via the **Example** dropdown — `MeatSale`, `VaccineProcurement`, and the Incoterms 2020 `FOB` trade term — or learn the language with `Tutorial`, a deliberately broken contract whose 22 commented problems (naming, typing, declarations, norms, access control, syntax) you fix one by one until it compiles. |
 | 9 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
 | 10 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
 | 11 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |

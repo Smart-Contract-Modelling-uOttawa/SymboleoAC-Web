@@ -1,0 +1,165 @@
+// =====================================================================
+//  SymboleoAC TUTORIAL - a bike-rental contract with DELIBERATE MISTAKES
+// =====================================================================
+//  This specification does NOT compile on purpose. It contains 22 numbered
+//  problems (19 errors and 3 warnings; a problem can raise more than one
+//  diagnostic) that cover the kinds of issues people meet when writing
+//  SymboleoAC: naming rules, domain-type rules, declaration rules, typing,
+//  references, norms, access control, and syntax.
+//
+//  How to use it:
+//   1. Look at the red (error) and yellow (warning) squiggles in the editor,
+//      or open the Diagnostics tab after clicking "Generate JS".
+//   2. Each problem is announced by a comment "// PROBLEM n: ... FIX: ..."
+//      just above the faulty line. Apply the fix, and watch the squiggle go.
+//   3. When no diagnostics remain, "Generate JS" produces the smart contract.
+//
+//  Reading the language (a 30-second primer):
+//   - Domain: types built on the contract ontology (Role, Asset, Event, ...).
+//   - Contract: parameters, then Declarations (typed instances), then norms.
+//   - Obligation  id: [trigger ->] O(debtor, creditor, antecedent, consequent);
+//   - Power       id: [trigger ->] P(creditor, debtor, antecedent, effect);
+//   - ACPolicy    Rule: Grant|Revoke permission To role On resource by role;
+// =====================================================================
+
+Domain bikeRentalDomain
+  // Roles are the parties. A Role needs the access-control attributes
+  // name, org, and dept: the generated contract authenticates callers on them.
+  Owner isA Role with name: String, org: String, dept: String;
+
+  // PROBLEM 1 (error): the role 'Renter' is missing the mandatory access-control
+  //   attributes 'org' and 'dept'.
+  //   FIX: declare it as  Renter isA Role with name: String, org: String, dept: String;
+  Renter isA Role with name: String;
+
+  Currency isAn Enumeration(CAD, USD);
+
+  // PROBLEM 2 (error): the 'Env' modifier marks an attribute whose value comes
+  //   from the environment when an EVENT happens; it is not allowed on an Asset.
+  //   FIX: remove 'Env' in front of 'plate'.
+  Bike isAn Asset with Env plate: String, model: String, dailyRate: Number, owner: Owner;
+
+  Delivered isAn Event with date: Date, performer: Owner, controller: Owner;
+
+  // PROBLEM 3 (error): every Event must declare who performs it, through a
+  //   Role-typed 'performer' attribute (a 'controller' is recommended too).
+  //   FIX: add  , performer: Renter, controller: Renter  to the attribute list.
+  Returned isAn Event with date: Date, dueDate: Date;
+
+  Paid isAn Event with amount: Number, currency: Currency, payDueDate: Date,
+       from: Renter, to: Owner, performer: Renter, controller: Renter;
+
+  // PROBLEM 4 (error): domain type names must start with an UPPERCASE letter.
+  //   FIX: rename to 'DamageReported' here AND in the declaration of 'damage' below.
+  damageReported isAn Event with Env cost: Number, performer: Owner, controller: Owner;
+
+  // PROBLEM 5 (error): an attribute name may appear only once in a type.
+  //   FIX: rename the second 'date' (e.g., to 'result: String') or delete it.
+  Inspected isAn Event with date: Date, date: Date, performer: Owner, controller: Owner;
+
+  // PROBLEM 6 (warning): 'Cancelled' is declared but never used in the contract.
+  //   FIX: use it (e.g., declare a 'cancelled' instance and a power on it) or delete it.
+  Cancelled isAn Event with performer: Renter, controller: Renter;
+endDomain
+
+// PROBLEM 7 (error): contract parameter names must start with a LOWERCASE letter.
+//   FIX: rename 'Price' to 'price' here and wherever it is used below.
+// PROBLEM 8 (warning): the parameter 'deposit' is never used.
+//   FIX: use it (e.g., in a deposit obligation) or remove it from the parameter list.
+Contract BikeRental (ownerP: Owner, renterP: Renter, bikeModel: String, Price: Number,
+                     curr: Currency, effDate: Date, rentalDays: Number, deposit: Number)
+
+Declarations
+  owner: Owner with name := ownerP.name, org := ownerP.org, dept := ownerP.dept;
+
+  // PROBLEM 9 (error): a declaration may only assign attributes that the type
+  //   declares; 'Renter' has no attribute 'email'.
+  //   FIX: remove ', email := "n/a"' (and, once PROBLEM 1 is fixed, assign org and dept).
+  renter: Renter with name := renterP.name, email := "n/a";
+
+  // PROBLEM 10 (error): every non-Env attribute must be initialized in a
+  //   declaration; 'owner' of 'Bike' is not.
+  //   FIX: add  , owner := owner  to the assignment list.
+  bike: Bike with model := bikeModel, dailyRate := Price;
+
+  // PROBLEM 11 (error): 'bike' is declared twice; identifiers must be unique
+  //   across parameters, declarations, obligations, and powers.
+  //   FIX: delete this duplicate declaration.
+  bike: Bike with model := bikeModel, dailyRate := Price, owner := owner;
+
+  delivered: Delivered with date := effDate, performer := owner, controller := owner;
+
+  // PROBLEM 12 (error): the first argument of Date.add must be a Date (or an
+  //   event, meaning the moment it happened); 'Price' is a Number.
+  //   FIX: use  Date.add(effDate, rentalDays, days).
+  returned: Returned with date := effDate, dueDate := Date.add(Price, rentalDays, days);
+
+  // PROBLEM 13 (error): type mismatch - 'amount' is a Number but is assigned a String.
+  //   FIX: assign a Number expression, e.g.,  amount := Price * rentalDays.
+  paid: Paid with amount := "fifty", currency := curr,
+        payDueDate := Date.add(effDate, rentalDays, days),
+        from := renter, to := owner, performer := renter, controller := renter;
+
+  // PROBLEM 14 (error): 'cost' is an Env attribute: its value is observed when
+  //   the event happens, so it must NOT be initialized in the declaration.
+  //   FIX: remove  cost := 0,  from the assignment list.
+  damage: damageReported with cost := 0, performer := owner, controller := owner;
+
+  inspected: Inspected with date := effDate, performer := owner, controller := owner;
+
+  // PROBLEM 15 (warning): the instance 'spare' is never used by any norm or rule.
+  //   FIX: use it or delete this declaration.
+  spare: Bike with model := "spare", dailyRate := 0, owner := owner;
+
+Obligations
+  // The owner must deliver the bike by the delivery date.
+  oDeliver: O(owner, renter, true, WhappensBefore(delivered, delivered.date));
+
+  // PROBLEM 16 (error): Happens(...) needs an EVENT instance; 'bike' is an Asset.
+  //   (The IDE also adds an informational note that 'oReturn' may be dormant,
+  //   since nothing can bring 'bike' about; it disappears with the fix.)
+  //   FIX: the obligation should be triggered by the delivery:  Happens(delivered) ->
+  oReturn: Happens(bike) -> O(renter, owner, true, WhappensBefore(returned, returned.dueDate));
+
+  // PROBLEM 17 (error): 'payment' is not declared (neither an instance nor a
+  //   parameter). The payment event instance is called 'paid'.
+  //   FIX: replace 'payment' with 'paid'.
+  oPay: O(renter, owner, Happens(delivered), WhappensBefore(payment, paid.payDueDate));
+
+  // PROBLEM 18 (error): the debtor and creditor of an obligation must be ROLE
+  //   instances; 'bike' is an Asset.
+  //   FIX: the owner inspects the bike:  O(owner, renter, true, Happens(inspected))
+  oInspect: Happens(returned) -> O(bike, renter, true, Happens(inspected));
+
+Surviving Obligations
+  // Damage found on return must be paid for, even after the contract ends.
+  oPayDamage: Happens(damage) -> O(renter, owner, true, Happens(paid) and paid.amount >= damage.cost);
+
+Powers
+  // PROBLEM 19 (error): there is no obligation named 'oPayment'; references such
+  //   as obligations.<name> must match a declared obligation (here 'oPay').
+  //   FIX: write  Violated(obligations.oPay).
+  pTerminate: Happens(Violated(obligations.oPayment)) -> P(owner, renter, true, Terminated(self));
+
+  // A late payment lets the owner suspend the delivery obligation.
+  pSuspend: Happens(Violated(obligations.oPay)) -> P(owner, renter, true, Suspended(obligations.oDeliver));
+
+ACPolicy with Controller owner
+  Rule1: Grant read To renter On bike.dailyRate by owner;
+
+  // PROBLEM 20 (error): the party granted access ('To ...') must be a ROLE
+  //   instance; 'bike' is an Asset.
+  //   FIX: grant the access to the renter:  To renter
+  Rule2: Grant read To bike On obligations.oPay by owner;
+
+  // PROBLEM 21 (error): access-control rule names must be unique; 'Rule1' is reused.
+  //   FIX: rename this rule 'Rule3'.
+  Rule1: Grant write To owner On damage by owner;
+
+Constraints
+  // PROBLEM 22 (error, syntax): every constraint (like every norm) ends with ';'.
+  //   The parser reports a missing ';' before 'endContract'.
+  //   FIX: add the semicolon.
+  not(IsEqual(renter, owner))
+
+endContract

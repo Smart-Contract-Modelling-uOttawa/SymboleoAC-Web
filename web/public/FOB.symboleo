@@ -1,0 +1,234 @@
+Domain fobDomain
+  // FOB - Free on Board (Incoterms 2020), named port of shipment.
+  // Seller bears cost and risk up to the moment the goods are on board the
+  // vessel nominated by the buyer; risk then passes to the buyer.
+  Seller isA Role with name: String, org: String, dept: String;
+  Buyer isA Role with name: String, org: String, dept: String;
+  // The carrier operates the vessel the buyer nominates; it issues the bill of lading.
+  Carrier isA Role thirdParty with name: String, org: String, dept: String;
+  Currency isAn Enumeration(CAD, USD, EUR);
+  // The goods sold; owner defaults to the seller until delivery.
+  Goods isAn Asset with description: String, quantity: Number, owner: Seller;
+  // The bill of lading: the transport document evidencing shipment on board.
+  // The carrier issues it TO the shipper (Hague-Visby art. III(3)), so the
+  // seller is the document's owner/holder: it authorizes the carrier to fill
+  // in the number at issuance and endorses the document to the buyer (the
+  // buyer's transfer grant). The carrier's own authority is over the
+  // issuance event, of which it is performer and controller.
+  BillOfLading isAn Asset with blNumber: String, owner: Seller;
+  // Buyer nominates the vessel and gives notice (name, loading point,
+  // transport-security requirements, deadline) - the typed B10 content.
+  VesselNominated isAn Event with Env vesselName: String, Env loadingPort: String, Env securityRequirements: String, dueDate: Date, performer: Buyer, controller: Buyer;
+  // B3: the nominated vessel fails to arrive on time, fails to take the goods,
+  // or closes for cargo earlier than notified; the buyer answers for its nominee.
+  VesselFailedToLoad isAn Event with Env reason: String, performer: Buyer, controller: Buyer;
+  // A1: the seller provides the commercial invoice (and any other evidence of
+  // conformity the contract of sale requires) in conformity with the contract.
+  InvoiceProvided isAn Event with performer: Seller, controller: Seller;
+  // A8: the seller checks (quality, weight, count), packages and marks the goods
+  // appropriately for transport, at its own cost - unless unpackaged carriage is
+  // usual for the trade or the parties agreed specific packaging requirements
+  // (the two ICC defeaters are recorded here, not modelled).
+  PackagedAndMarked isAn Event with performer: Seller, controller: Seller;
+  // Seller clears the goods for export.
+  ExportCleared isAn Event with performer: Seller, controller: Seller;
+  // B7 ('where applicable'): the buyer carries out and pays for transit and
+  // import clearance formalities - licences, security clearance, pre-shipment
+  // inspection, duties - in time for delivery/receipt.
+  ImportClearedByBuyer isAn Event with dueDate: Date, performer: Buyer, controller: Buyer;
+  // A4 (2020): the seller complies with transport-related security requirements
+  // up to delivery.
+  SecurityComplied isAn Event with performer: Seller, controller: Seller;
+  // Delivery: seller places the goods on board the nominated vessel (risk passes).
+  LoadedOnBoard isAn Event with port: String, Env onBoardDate: Date, delDueDate: Date, performer: Seller, controller: Seller;
+  // A2 alternative performance: the seller may instead procure goods already
+  // so delivered (string sales, common in commodity chains).
+  ProcuredSoDelivered isAn Event with performer: Seller, controller: Seller;
+  // Carrier issues the bill of lading once the goods are on board. A6 content
+  // requirements: negotiable form implies a full set of originals (customarily
+  // three); the issuance must fall within the shipment period (see oProvideDocuments).
+  BillOfLadingIssued isAn Event with Env blNumber: String, Env negotiable: Boolean, Env originalsCount: Number, performer: Carrier, controller: Carrier;
+  // Seller hands the buyer the usual proof of delivery (the bill of lading).
+  // The Env conforming flag records whether the tendered documents are in
+  // conformity with the contract (B6: the buyer must accept them iff they are).
+  DocumentsProvided isAn Event with Env conforming: Boolean, performer: Seller, controller: Seller;
+  // A10: the seller gives the buyer the notice it needs to receive the goods -
+  // for the F-terms a dual notice: that the goods have been delivered, or that
+  // the nominated vessel/carrier failed to take them within the time agreed.
+  DeliveryNoticeGiven isAn Event with Env subject: String, performer: Seller, controller: Seller;
+  // Buyer takes delivery of the goods.
+  GoodsTakenOver isAn Event with performer: Buyer, controller: Buyer;
+  // Request-triggered assistance channel, seller -> buyer (ICC pattern: 'at the
+  // buyer's request, risk and cost'; per-article topics at the obligation).
+  AssistanceToBuyerRequested isAn Event with Env topic: String, performer: Buyer, controller: Buyer;
+  AssistanceToBuyerProvided isAn Event with Env topic: String, performer: Seller, controller: Seller;
+  AssistanceToBuyerReimbursed isAn Event with Env amount: Number, performer: Buyer, controller: Buyer;
+  // Request-triggered assistance channel, buyer -> seller (ICC pattern: 'at the
+  // seller's request, risk and cost'; per-article topics at the obligation).
+  AssistanceToSellerRequested isAn Event with Env topic: String, performer: Seller, controller: Seller;
+  AssistanceToSellerProvided isAn Event with Env topic: String, performer: Buyer, controller: Buyer;
+  AssistanceToSellerReimbursed isAn Event with Env amount: Number, performer: Seller, controller: Seller;
+  // The goods are clearly identified (appropriated) as the contract goods -
+  // the ICC proviso guarding every premature risk/cost transfer (B3/B9).
+  GoodsIdentified isAn Event with performer: Seller, controller: Seller;
+  // B9(d): the buyer bears the additional costs caused by its (or its nominee's) failure.
+  AdditionalCostsPaid isAn Event with Env amount: Number, performer: Buyer, controller: Buyer;
+  // Buyer pays the price.
+  Paid isAn Event with amount: Number, currency: Currency, from: Buyer, to: Seller, payDueDate: Date, performer: Buyer, controller: Buyer;
+endDomain
+
+Contract FOB (
+  sellerP: Seller, buyerP: Buyer, carrierP: Carrier,
+  goodsDesc: String, qty: Number, price: Number, curr: Currency,
+  portOfShipment: String, effDate: Date, noticeDays: Number, importDays: Number, deliveryDays: Number, paymentDays: Number, reimburseDays: Number, assistDays: Number
+)
+
+Declarations
+  seller: Seller with name := sellerP.name, org := sellerP.org, dept := sellerP.dept;
+  buyer: Buyer with name := buyerP.name, org := buyerP.org, dept := buyerP.dept;
+  carrier: Carrier with name := carrierP.name, org := carrierP.org, dept := carrierP.dept;
+  goods: Goods with description := goodsDesc, quantity := qty, owner := seller;
+  billOfLading: BillOfLading with blNumber := "", owner := seller;
+  vesselNominated: VesselNominated with dueDate := Date.add(effDate, noticeDays, days), performer := buyer, controller := buyer;
+  vesselFailedToLoad: VesselFailedToLoad with performer := buyer, controller := buyer;
+  invoiceProvided: InvoiceProvided with performer := seller, controller := seller;
+  packagedAndMarked: PackagedAndMarked with performer := seller, controller := seller;
+  exportCleared: ExportCleared with performer := seller, controller := seller;
+  importClearedByBuyer: ImportClearedByBuyer with dueDate := Date.add(effDate, importDays, days), performer := buyer, controller := buyer;
+  securityComplied: SecurityComplied with performer := seller, controller := seller;
+  loadedOnBoard: LoadedOnBoard with port := portOfShipment, delDueDate := Date.add(effDate, deliveryDays, days), performer := seller, controller := seller;
+  procuredSoDelivered: ProcuredSoDelivered with performer := seller, controller := seller;
+  billOfLadingIssued: BillOfLadingIssued with performer := carrier, controller := carrier;
+  documentsProvided: DocumentsProvided with performer := seller, controller := seller;
+  deliveryNoticeGiven: DeliveryNoticeGiven with performer := seller, controller := seller;
+  goodsTakenOver: GoodsTakenOver with performer := buyer, controller := buyer;
+  assistanceToBuyerRequested: AssistanceToBuyerRequested with performer := buyer, controller := buyer;
+  assistanceToBuyerProvided: AssistanceToBuyerProvided with performer := seller, controller := seller;
+  assistanceToBuyerReimbursed: AssistanceToBuyerReimbursed with performer := buyer, controller := buyer;
+  assistanceToSellerRequested: AssistanceToSellerRequested with performer := seller, controller := seller;
+  assistanceToSellerProvided: AssistanceToSellerProvided with performer := buyer, controller := buyer;
+  assistanceToSellerReimbursed: AssistanceToSellerReimbursed with performer := seller, controller := seller;
+  goodsIdentified: GoodsIdentified with performer := seller, controller := seller;
+  additionalCostsPaid: AdditionalCostsPaid with performer := buyer, controller := buyer;
+  paid: Paid with amount := price, currency := curr, from := buyer, to := seller, payDueDate := Date.add(effDate, paymentDays, days), performer := buyer, controller := buyer;
+
+Preconditions
+  goods.quantity > 0;
+
+Obligations
+  // A1: the seller provides the commercial invoice in conformity with the
+  // contract of sale (what counts as conform is the sale contract's standard).
+  oProvideInvoice: O(seller, buyer, true, Happens(invoiceProvided));
+  // A8: checking, packaging and marking precede delivery.
+  oPackage: O(seller, buyer, true, ShappensBefore(packagedAndMarked, loadedOnBoard)
+              or ShappensBefore(packagedAndMarked, procuredSoDelivered));
+  // A7: the seller clears the goods for export before they go on board.
+  oExportClearance: O(seller, buyer, true, ShappensBefore(exportCleared, loadedOnBoard)
+              or ShappensBefore(exportCleared, procuredSoDelivered));
+  // A4 (2020): the seller complies with transport-security requirements up to delivery.
+  oSecurityCompliance: O(seller, buyer, true, ShappensBefore(securityComplied, loadedOnBoard)
+              or ShappensBefore(securityComplied, procuredSoDelivered));
+  // A2 delivery: once the buyer has nominated the vessel, the seller must place
+  // the goods on board it, at the named loading point, before the deadline
+  // - or procure goods already so delivered (string sales).
+  oDeliver: Happens(vesselNominated) -> O(seller, buyer, true,
+              (WhappensBefore(loadedOnBoard, loadedOnBoard.delDueDate)
+              and loadedOnBoard.port == vesselNominated.loadingPort)
+              or WhappensBefore(procuredSoDelivered, loadedOnBoard.delDueDate));
+  // A6: after loading, the carrier issues the bill of lading and the seller
+  // provides the buyer with that proof of delivery.
+  // Content requirements: dated within the shipment period; if negotiable,
+  // a full set of originals (customarily three) must be tendered.
+  oProvideDocuments: (Happens(loadedOnBoard) or Happens(procuredSoDelivered)) -> O(seller, buyer, true,
+              Happens(billOfLadingIssued) and Happens(documentsProvided)
+              and WhappensBefore(billOfLadingIssued, loadedOnBoard.delDueDate)
+              and (billOfLadingIssued.negotiable == false or billOfLadingIssued.originalsCount >= 3));
+  // A10 (dual notice): the seller notifies the buyer that the goods have been
+  // delivered - or that the nominated vessel failed to take them in time.
+  oNotifyDelivery: (Happens(loadedOnBoard) or Happens(procuredSoDelivered) or Happens(vesselFailedToLoad)) -> O(seller, buyer, true,
+              Happens(deliveryNoticeGiven));
+  // B4/B10: the buyer nominates the vessel and gives sufficient notice in time.
+  oNominateVessel: O(buyer, seller, true, WhappensBefore(vesselNominated, vesselNominated.dueDate));
+  // B7 ('where applicable'): the buyer carries out and pays for transit and
+  // import clearance formalities in time.
+  oImportClearanceBuyer: O(buyer, seller, true, WhappensBefore(importClearedByBuyer, importClearedByBuyer.dueDate));
+  // B2: the buyer takes delivery of the goods once they are on board.
+  oTakeDelivery: (Happens(loadedOnBoard) or Happens(procuredSoDelivered)) -> O(buyer, seller, true, Happens(goodsTakenOver));
+  // At the buyer's request, risk and cost, the seller provides assistance with:
+  //   - A4: transport information incl. security requirements
+  //   - A5: insurance information
+  //   - A6: obtaining a transport document, where the proof of delivery is not one
+  //   - A7(b): transit/import clearance documents and information
+  // The assistance must be provided in time - within assistDays of the
+  // request (L4: the deadline is relative to the request event's occurrence),
+  // so a failure to assist is a violation the B3/B9(d) limb can trigger on.
+  oAssistBuyer: Happens(assistanceToBuyerRequested) -> O(seller, buyer, true,
+              WhappensBefore(assistanceToBuyerProvided,
+                             Date.add(assistanceToBuyerRequested, assistDays, days)));
+  // B9: the buyer reimburses all costs of assistance it requested,
+  // within reimburseDays of the assistance being provided (L4: the
+  // deadline is relative to the assistance event's occurrence).
+  oReimburseSellerAssist: Happens(assistanceToBuyerProvided) -> O(buyer, seller, true,
+              WhappensBefore(assistanceToBuyerReimbursed,
+                             Date.add(assistanceToBuyerProvided, reimburseDays, days)));
+  // At the seller's request, risk and cost, the buyer provides assistance with:
+  //   - B7(a): export clearance documents and information
+  // The assistance must be provided in time - within assistDays of the
+  // request (L4). For DDP this is the buyer's B7 import-clearance assistance,
+  // whose violation is that rule's B3(a) premature-transfer trigger.
+  oAssistSeller: Happens(assistanceToSellerRequested) -> O(buyer, seller, true,
+              WhappensBefore(assistanceToSellerProvided,
+                             Date.add(assistanceToSellerRequested, assistDays, days)));
+  // A9: the seller reimburses all costs of assistance it requested,
+  // within reimburseDays of the assistance being provided (L4: the
+  // deadline is relative to the assistance event's occurrence).
+  oReimburseBuyerAssist: Happens(assistanceToSellerProvided) -> O(seller, buyer, true,
+              WhappensBefore(assistanceToSellerReimbursed,
+                             Date.add(assistanceToSellerProvided, reimburseDays, days)));
+
+Surviving Obligations
+  // B1: the buyer must pay the price for goods delivered on board and evidenced
+  // by the bill of lading; this survives termination of the contract.
+  oPay: ((Happens(loadedOnBoard) or Happens(procuredSoDelivered)) and Happens(documentsProvided)) -> Obligation(buyer, seller, true,
+              WhappensBefore(paid, paid.payDueDate) and paid.amount == price);
+  // B3/B9(d): if the buyer fails to nominate the vessel in time or its nominee fails to take the goods,
+  // the buyer bears the resulting additional costs - the rules' premature
+  // risk/cost transfer, guarded by the ICC proviso that the goods have been
+  // clearly identified as the contract goods. A surviving obligation: like
+  // the payment above, it outlives termination caused by the very failure
+  // that triggered it.
+  oFailureCosts: (Happens(Violated(obligations.oNominateVessel)) or Happens(vesselFailedToLoad)) ->
+              Obligation(buyer, seller, Happens(goodsIdentified), Happens(additionalCostsPaid));
+
+Powers
+  // If the buyer fails to nominate the vessel in time - or its nominee
+  // fails to take the goods - the seller may suspend delivery.
+  pSuspendDelivery: (Happens(Violated(obligations.oNominateVessel)) or Happens(vesselFailedToLoad)) ->
+              P(seller, buyer, true, Suspended(obligations.oDeliver)) with Controller seller;
+  // A late nomination during the suspension resumes the delivery obligation.
+  pResumeDelivery: HappensWithin(vesselNominated, Suspension(obligations.oDeliver)) ->
+              P(buyer, seller, true, Resumed(obligations.oDeliver));
+  // B6: the buyer must accept conforming documents - so when the tendered
+  // documents are NOT in conformity with the contract, the buyer may suspend
+  // the (surviving) payment obligation until conforming documents arrive.
+  // Verified: powers may target surviving obligations (compiler + codegen).
+  pRejectDocuments: Happens(documentsProvided) ->
+              P(buyer, seller, documentsProvided.conforming == false, Suspended(obligations.oPay));
+  // If the seller fails to deliver on board, the buyer may terminate the contract.
+  pTerminateByBuyer: Happens(Violated(obligations.oDeliver)) -> P(buyer, seller, true, Terminated(self));
+  // If the buyer fails to take delivery, the seller may terminate the contract.
+  pTerminateBySeller: Happens(Violated(obligations.oTakeDelivery)) -> P(seller, buyer, true, Terminated(self));
+
+ACPolicy with Controller seller
+  Rule1: Grant read To buyer On goods.description by seller;
+  Rule2: Grant read To buyer On obligations.oDeliver by seller;
+  Rule3: Grant read To carrier On loadedOnBoard by seller;
+  Rule4: Grant read To seller On billOfLadingIssued by carrier;
+  Rule5: Grant write To carrier On billOfLading.blNumber by seller;
+  Rule6: Grant transfer To buyer On billOfLading by seller;
+  Rule7: Grant write To buyer On powers.pTerminateByBuyer by seller;
+
+Constraints
+  not(IsEqual(buyer, seller));
+
+endContract
