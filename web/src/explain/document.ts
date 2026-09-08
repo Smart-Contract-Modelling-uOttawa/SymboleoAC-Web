@@ -16,6 +16,11 @@ import { GLOSSARY, capitalize, joinList, overview, rulePhrase, slots, type NormS
 import { proseRich, type Detail } from './markdown.js';
 import { gherkinNorm, gherkinText, type GLine } from './gherkin.js';
 import { symboleoacKeywords, symboleoacControlKeywords, symboleoacBuiltins } from '../editor/symboleoac.monarch.js';
+import { SEMANTIC_COLOURS } from '../editor/theme.js';
+
+/** Kind of a declared identifier, for the same colours as the editor's semantic tokens. */
+type IdKind = 'type' | 'enumMember' | 'attribute' | 'parameter' | 'instance' | 'event' | 'norm' | 'rule';
+type Decls = { line: Map<string, number>; kind: Map<string, IdKind>; attrs: Set<string> };
 import type { ExplainStyle } from './ExplainView.js';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -113,7 +118,7 @@ ${s.authorNote ? `<p class="note full-only"><b>Specifier's note:</b> ${esc(s.aut
  * declaration line (except on that line itself; attribute names after "."
  * are not linked).
  */
-function highlightSpec(source: string, decl: Map<string, number>): string {
+function highlightSpec(source: string, decl: Decls): string {
   const KW = new Set(symboleoacKeywords), CTRL = new Set(symboleoacControlKeywords), BUILT = new Set(symboleoacBuiltins);
   const lines = source.replace(/^\ufeff/, '').split(/\r?\n/);
   let inBlockComment = false;
@@ -141,7 +146,11 @@ function highlightSpec(source: string, decl: Map<string, number>): string {
         if (BUILT.has(m[0])) html += `<span class="t-predefined">${esc(m[0])}</span>`;
         else {
           const parts = m[0].split('.');
-          html += parts.map((part, k) => (k === 0 ? ident(part, ln, decl) : `<span class="t-identifier">${esc(part)}</span>`)).join('<span class="t-delimiter">.</span>');
+          // `obligations.X` / `powers.X`: the prefix is grammar keyword, X a norm reference.
+          const normRef = parts.length === 2 && (parts[0] === 'obligations' || parts[0] === 'powers');
+          html += parts.map((part, k) => (k === 0
+            ? (normRef ? `<span class="t-keyword">${esc(part)}</span>` : ident(part, ln, decl))
+            : (normRef ? ident(part, ln, decl) : `<span class="t-attribute">${esc(part)}</span>`))).join('<span class="t-delimiter">.</span>');
         }
         i += m[0].length; continue;
       }
@@ -163,11 +172,13 @@ function highlightSpec(source: string, decl: Map<string, number>): string {
   return `<pre class="spec">${out.join('')}</pre>`;
 }
 
-function ident(w: string, line: number, decl: Map<string, number>): string {
-  const target = decl.get(w);
-  if (target && target !== line) return `<a class="ref t-identifier" href="#L${target}" data-line="${target}" title="Declared at line ${target}">${esc(w)}</a>`;
-  if (target) return `<span class="t-identifier t-decl" title="Declaration">${esc(w)}</span>`;
-  return `<span class="t-identifier">${esc(w)}</span>`;
+function ident(w: string, line: number, decl: Decls): string {
+  const target = decl.line.get(w);
+  const kind = decl.kind.get(w);
+  const cls = kind ? `t-${kind}` : decl.attrs.has(w) ? 't-attribute' : 't-identifier';
+  if (target && target !== line) return `<a class="ref ${cls}" href="#L${target}" data-line="${target}" title="Declared at line ${target}">${esc(w)}</a>`;
+  if (target) return `<span class="${cls} t-decl" title="Declaration">${esc(w)}</span>`;
+  return `<span class="${cls}">${esc(w)}</span>`;
 }
 
 // ------------------------------------------------------------------ document
@@ -183,10 +194,18 @@ export async function buildDocumentHtml(model: ContractModel, source: string, op
   for (const r of rules) pos.set(r.name, r.line);
   for (const n of ex.norms) pos.set(n.name, n.line);
   const ctx: Ctx = { pos, kinds: new Map(ex.norms.map((n) => [n.name, n.kind])) };
-  const decl = new Map<string, number>(pos);
-  for (const items of Object.values(model.domainCategories ?? {})) for (const t of items) decl.set(t.name, t.line);
+  // Declarations: line of each declared name and its kind, as the editor's semantic tokens classify them.
+  const decl: Decls = { line: new Map<string, number>(pos), kind: new Map(), attrs: new Set() };
+  for (const items of Object.values(model.domainCategories ?? {})) for (const t of items) decl.line.set(t.name, t.line);
   const contractLine = model.keywords?.['Contract']?.line;
-  if (contractLine) for (const p of ex.contract.parameters) if (!decl.has(p.name)) decl.set(p.name, contractLine);
+  if (contractLine) for (const p of ex.contract.parameters) if (!decl.line.has(p.name)) decl.line.set(p.name, contractLine);
+  for (const t of model.domainModel?.types ?? []) { decl.kind.set(t.name, 'type'); for (const a of t.attributes) if (a.name) decl.attrs.add(a.name); }
+  for (const e of model.domainModel?.enums ?? []) { decl.kind.set(e.name, 'type'); for (const it of e.items) decl.kind.set(it, 'enumMember'); }
+  for (const p of ex.contract.parameters) decl.kind.set(p.name, 'parameter');
+  for (const v of [...ex.contract.parties, ...ex.contract.assets, ...ex.contract.sensors, ...ex.contract.others]) decl.kind.set(v.var, 'instance');
+  for (const v of ex.contract.events) decl.kind.set(v.var, 'event');
+  for (const n of ex.norms) decl.kind.set(n.name, 'norm');
+  for (const r of rules) decl.kind.set(r.name, 'rule');
   const name = ex.contract.name || model.contractName || 'Contract';
 
   // Diagrams: rendered here (light theme) and inlined as SVG.
@@ -362,7 +381,10 @@ html[data-detail="brief"] .full-only { display: none !important; }
 pre.spec { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 10px 0; overflow-x: auto; font: 13px/1.45 Consolas, "Courier New", ui-monospace, monospace; margin: 0; }
 pre.spec .ln { display: block; padding: 0 12px; scroll-margin-top: 90px; white-space: pre; } pre.spec .ln .n { display: inline-block; width: 3.5em; color: #858585; user-select: none; }
 pre.spec .ln.flash { background: #3a3d41; }
-.t-keyword { color: #569cd6; } .t-control { color: #c586c0; } .t-predefined { color: #dcdcaa; } .t-identifier { color: #9cdcfe; }
+.t-keyword { color: #569cd6; } .t-control { color: #c586c0; } .t-predefined { color: #dcdcaa; } .t-identifier { color: #d4d4d4; }
+.t-type { color: #${SEMANTIC_COLOURS.type}; } .t-enumMember { color: #${SEMANTIC_COLOURS.enumMember}; } .t-attribute { color: #${SEMANTIC_COLOURS.attribute}; }
+.t-parameter { color: #${SEMANTIC_COLOURS.parameter}; font-style: italic; } .t-instance { color: #${SEMANTIC_COLOURS.instance}; } .t-event { color: #${SEMANTIC_COLOURS.event}; }
+.t-norm { color: #${SEMANTIC_COLOURS.norm}; } .t-rule { color: #${SEMANTIC_COLOURS.rule}; }
 .t-number { color: #b5cea8; } .t-string { color: #ce9178; } .t-comment { color: #6a9955; } .t-operator, .t-delimiter { color: #d4d4d4; }
 pre.spec a.ref { text-decoration: underline dotted; } pre.spec a.ref:hover { text-decoration: underline; }
 pre.spec .t-decl { font-weight: 600; }
