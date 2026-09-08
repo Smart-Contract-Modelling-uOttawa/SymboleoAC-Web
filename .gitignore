@@ -41,3 +41,7 @@ Thumbs.db
 
 # Manuscript drafts are kept out of the repository
 paper/
+
+# Explain-corpus tool outputs and fetched specifications
+tools/explain-corpus/out/
+tools/explain-corpus/specs/
