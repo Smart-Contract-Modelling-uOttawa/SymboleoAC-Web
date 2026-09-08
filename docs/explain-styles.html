@@ -1,0 +1,520 @@
+<title>Explain Tab Styles</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #F6F7F4; --panel: #FFFFFF; --ink: #1E262B; --muted: #66707A; --line: #D8DDD9;
+    --obl: #2E5E8C; --obl-soft: #E7EEF6; --surv: #1D7A6C; --surv-soft: #E3F1EE;
+    --pow: #9C5A18; --pow-soft: #F7ECDF; --note: #F1F0E6; --code-bg: #EEF0EC;
+    --accent: #2E5E8C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16191C; --panel: #1E2226; --ink: #E4E7E2; --muted: #9AA3AA; --line: #333A40;
+      --obl: #7FB0DF; --obl-soft: #1F2E3D; --surv: #6CC5B4; --surv-soft: #1B3330;
+      --pow: #E0A15A; --pow-soft: #3A2C1B; --note: #262A22; --code-bg: #2A2F34; --accent: #7FB0DF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16191C; --panel: #1E2226; --ink: #E4E7E2; --muted: #9AA3AA; --line: #333A40;
+    --obl: #7FB0DF; --obl-soft: #1F2E3D; --surv: #6CC5B4; --surv-soft: #1B3330;
+    --pow: #E0A15A; --pow-soft: #3A2C1B; --note: #262A22; --code-bg: #2A2F34; --accent: #7FB0DF;
+  }
+  body { background: var(--paper); color: var(--ink); font: 16px/1.5 "Source Sans 3", "Segoe UI", system-ui, sans-serif; margin: 0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 34px; line-height: 1.15; }
+  h2 { font-size: 22px; margin-top: 40px; }
+  h3 { font-size: 18px; font-weight: 500; }
+  p { margin: 0; }
+  .lede { color: var(--muted); max-width: 66ch; margin-top: 10px; }
+  code { font: 13.5px/1 "JetBrains Mono", Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+  /* style switcher */
+  .switch { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-top: 28px; width: max-content; }
+  .switch button { font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border: 0; background: var(--panel); color: var(--muted); cursor: pointer; border-right: 1px solid var(--line); }
+  .switch button:last-child { border-right: 0; }
+  .switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .style-note { margin-top: 10px; color: var(--muted); font-size: 14px; max-width: 70ch; }
+
+  /* overview */
+  .overview { margin-top: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 22px 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; }
+  .overview .field { display: grid; gap: 4px; }
+  .overview .field p, .overview .field li { font-size: 15px; }
+  .overview .full { grid-column: 1 / -1; }
+  ul { margin: 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .lifecycle { margin-top: 14px; padding: 16px 20px; border-left: 3px solid var(--line); }
+  .lifecycle ol { margin: 6px 0 0; padding-left: 20px; }
+  .lifecycle li { margin: 4px 0; }
+  .obs { color: var(--muted); font-size: 14px; }
+
+  /* norm blocks */
+  .norm { margin-top: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+  .norm header { display: flex; align-items: baseline; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .kind { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; padding: 2px 8px; border-radius: 3px; }
+  .norm[data-kind="obligation"] .kind { color: var(--obl); background: var(--obl-soft); }
+  .norm[data-kind="surviving"] .kind { color: var(--surv); background: var(--surv-soft); }
+  .norm[data-kind="power"] .kind { color: var(--pow); background: var(--pow-soft); }
+  .norm header .src { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .body { padding: 16px 20px 18px; }
+  .render[hidden] { display: none; }
+  .authornote { margin-top: 12px; padding: 8px 12px; background: var(--note); border-radius: 4px; font-size: 14px; color: var(--muted); font-style: italic; }
+  .authornote b { font-style: normal; font-weight: 600; }
+
+  /* Style A: fact sheet */
+  .sheet { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; font-size: 15px; }
+  .sheet dt { color: var(--muted); font-weight: 600; font-size: 13px; letter-spacing: .02em; padding-top: 2px; }
+  .sheet dd { margin: 0; }
+  .sheet dd ul { padding-left: 16px; }
+  .sheet .meta { color: var(--muted); }
+  .sheet dt.empty, .sheet dd.empty { color: var(--muted); font-style: italic; }
+
+  /* Style B: prose */
+  .prose { max-width: 68ch; font-size: 16px; }
+  .prose p + p { margin-top: 10px; }
+  .prose .tail { color: var(--muted); font-size: 14.5px; }
+
+  /* Style C: rules */
+  .rule { display: grid; grid-template-columns: 96px 1fr; gap: 6px 14px; font-size: 15px; }
+  .rule .kw { font: 600 12.5px/1.7 "JetBrains Mono", Consolas, monospace; letter-spacing: .05em; text-transform: uppercase; }
+  .norm[data-kind="obligation"] .rule .kw { color: var(--obl); }
+  .norm[data-kind="surviving"] .rule .kw { color: var(--surv); }
+  .norm[data-kind="power"] .rule .kw { color: var(--pow); }
+  .rule ul { padding-left: 16px; }
+  .rule .foot { grid-column: 1 / -1; color: var(--muted); font-size: 14px; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 4px; }
+
+  .compare { margin-top: 22px; width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .compare th, .compare td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .compare th { font-size: 12.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+  @media (max-width: 640px) { .sheet, .rule { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: no-preference) { .render { animation: fade .15s ease-out; } }
+  @keyframes fade { from { opacity: .4 } to { opacity: 1 } }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SymboleoAC Web IDE · proposed tab</p>
+  <h1>Explain: three ways to say the same contract</h1>
+  <p class="lede">Every block below is what the new tab would generate from <code>VaccineProcurement.symboleo</code> alone. The same structured model feeds all three styles; switch to compare. Identifiers in code font would be clickable and jump to the source line.</p>
+
+  <div class="switch" role="group" aria-label="Explanation style">
+    <button type="button" data-style="a" aria-pressed="true">A · Fact sheet</button>
+    <button type="button" data-style="b" aria-pressed="false">B · Plain-English clause</button>
+    <button type="button" data-style="c" aria-pressed="false">C · If / then / otherwise</button>
+  </div>
+  <p class="style-note" id="style-note">Labelled slots, one per element of the formal norm. Nothing is ever omitted; an empty slot says so. Best for checking completeness.</p>
+
+  <h2>The contract as a whole</h2>
+  <p class="lede">Identical in all three styles. Derived from the signature, domain, declarations, preconditions, powers and access-control policy.</p>
+  <div class="overview">
+    <div class="field full">
+      <p class="eyebrow">Summary</p>
+      <p><code>VaccineProcurementC</code> is an agreement between a <b>Manufacturer</b> (<code>pfizer</code>) and a <b>Government</b> (<code>mcdc</code>) for repeated orders of vaccine doses. The Government requests doses, the Manufacturer delivers them through a courier under cold-chain monitoring, and the Government pays within 30 days of each invoice. Four third parties take part without being bound by it: a <b>Regulator</b>, an <b>Admin</b>, the <b>FDA</b> and a <b>WorldCourier</b>.</p>
+    </div>
+    <div class="field">
+      <p class="eyebrow">Fixed when the contract is created</p>
+      <ul>
+        <li>unit price of a dose (<code>unitPrice</code>)</li>
+        <li>smallest order accepted (<code>minQuantity</code>)</li>
+        <li>total doses available (<code>maxQuantity</code>, starting value of <code>remain</code>)</li>
+        <li>whether the vaccine is FDA-approved (<code>approval</code>)</li>
+      </ul>
+    </div>
+    <div class="field">
+      <p class="eyebrow">Comes into force only if</p>
+      <p>the vaccine is FDA-approved (<code>vaccineDose.FDAapproval == true</code>).</p>
+      <p class="eyebrow" style="margin-top:8px">Time is counted in</p>
+      <p>days.</p>
+    </div>
+    <div class="field">
+      <p class="eyebrow">What the parties owe</p>
+      <ul>
+        <li>4 obligations, all owed within the contract</li>
+        <li>2 obligations that survive termination: payment (<code>oPay</code>) and recording an FDA withdrawal (<code>oWithdrewApproval</code>)</li>
+        <li>2 powers, both able to terminate the contract</li>
+      </ul>
+    </div>
+    <div class="field">
+      <p class="eyebrow">How it can end</p>
+      <ul>
+        <li>The Manufacturer may terminate once the programme is complete (<code>pTermination</code>).</li>
+        <li>The Government may terminate after any stop-work order (<code>pStopWork</code>).</li>
+      </ul>
+    </div>
+    <div class="field">
+      <p class="eyebrow">Who controls access to information</p>
+      <p>The Regulator administers the access policy and the delivery obligation. Nine rules: the Government may read the dose asset and the delivery record; the courier may read the FDA-approval flag; the Manufacturer may read FDA withdrawals; the Manufacturer may <b>not</b> write any of the five sensor values.</p>
+    </div>
+    <div class="field">
+      <p class="eyebrow">Monitoring</p>
+      <p>Five sensor feeds raised by the Regulator, controlled by the Manufacturer: temperature (value above −80, 5 readings within 10), humidity (above 70, 3 within 15), shock (above 5), light exposure and seal opening (any). Any alert for a request blocks that request's delivery from counting as fulfilled.</p>
+    </div>
+    <div class="field full lifecycle">
+      <p class="eyebrow">Normal course of one order</p>
+      <ol>
+        <li>Government <b>requests</b> doses (<code>requested</code>), creating the request, delivery, accounting and payment obligations for that request.</li>
+        <li>Manufacturer <b>informs the lead time</b>; Government <b>agrees</b> (<code>oAgreedOnRequest</code>).</li>
+        <li>Manufacturer <b>notifies a delivery date</b>; Government <b>confirms</b> the shipping location.</li>
+        <li>Courier <b>delivers</b> on the notified (or risk-extended) date, with no cold-chain alert (<code>oDeliver</code>).</li>
+        <li>Remaining doses and the amount payable are <b>updated</b> (<code>oAssign</code>).</li>
+        <li>Invoice is issued; Government <b>pays</b> within 30 days (<code>oPay</code>, survives termination).</li>
+        <li>When fewer than <code>minQuantity</code> doses remain and both parties declare termination, the programme is complete and the Manufacturer may terminate.</li>
+      </ol>
+    </div>
+    <div class="field full">
+      <p class="eyebrow">Observations</p>
+      <p class="obs"><code>admin</code> and <code>fda</code> are declared parties but appear in no obligation or power; <code>fda</code> performs the <code>withdrewApproval</code> event and grants Rule 9. <code>adminStopWork</code>, <code>regulationStopWork</code> and <code>judicialStopWork</code> are all performed by the Regulator. No postconditions or constraints are specified.</p>
+    </div>
+  </div>
+
+  <h2>Obligations</h2>
+
+  <!-- oRequestVaccineDosage -->
+  <article class="norm" data-kind="obligation">
+    <header><span class="kind">Obligation</span><h3><code>oRequestVaccineDosage</code> · completing the programme</h3><span class="src">line 79</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Government (<code>mcdc</code>) to the Manufacturer (<code>pfizer</code>)</dd>
+          <dt>Created</dt><dd>when the contract starts (no trigger)</dd>
+          <dt>Binding</dt><dd>immediately (no condition)</dd>
+          <dt>Must bring about</dt><dd>
+            <ul>
+              <li>fewer than <code>minQuantity</code> doses remain (<code>remain.value</code>)</li>
+              <li>the request, delivery and accounting obligations have each been fulfilled</li>
+              <li>both the Government and the Manufacturer have declared the agreement terminated</li>
+            </ul></dd>
+          <dt>Deadline</dt><dd class="empty">none stated</dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Feeds</dt><dd class="meta">fulfilling it gives the Manufacturer the power to terminate (<code>pTermination</code>)</dd>
+          <dt>Access rules</dt><dd class="empty">none touch this obligation</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>From the moment the contract takes effect, the Government owes the Manufacturer the completion of the procurement programme. The obligation counts as fulfilled only when fewer than the minimum order quantity of doses remain, the request, delivery and accounting obligations have all been fulfilled, and both parties have declared the agreement terminated. No deadline is set.</p>
+          <p class="tail">Fulfilling it is what unlocks the Manufacturer's power to terminate the contract.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">From</span><span>contract start, unconditionally,</span>
+          <span class="kw">Then</span><span>the Government (<code>mcdc</code>) must, for the Manufacturer (<code>pfizer</code>), ensure that
+            <ul><li>fewer than <code>minQuantity</code> doses remain, and</li><li><code>oAgreedOnRequest</code>, <code>oDeliver</code> and <code>oAssign</code> have been fulfilled, and</li><li>both parties have declared termination.</li></ul></span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">No deadline. Enables <code>pTermination</code>. No access rules apply.</span>
+        </div>
+      </div>
+      <p class="authornote"><b>Author's note</b> (from the source comment): to keep the contract in active state until the remaining doses are less than the minimum requested quantity and both parties terminate the agreement.</p>
+    </div>
+  </article>
+
+  <!-- oAgreedOnRequest -->
+  <article class="norm" data-kind="obligation">
+    <header><span class="kind">Obligation</span><h3><code>oAgreedOnRequest</code> · a valid, agreed request</h3><span class="src">line 85</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Government (<code>mcdc</code>) to the Manufacturer (<code>pfizer</code>)</dd>
+          <dt>Created</dt><dd>each time the Government submits a request (<code>requested</code>)</dd>
+          <dt>Binding</dt><dd>once the Government signals agreement (<code>agreedFromG</code>)</dd>
+          <dt>Must bring about</dt><dd>
+            <ul>
+              <li>the Manufacturer's lead-time notice (<code>leadtimeINform</code>) came strictly before the agreement</li>
+              <li>the notice and the agreement refer to the same request (<code>reqID</code>)</li>
+              <li>the quantity requested is at least <code>minQuantity</code> and no more than the doses remaining</li>
+            </ul></dd>
+          <dt>Deadline</dt><dd class="empty">none stated</dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Feeds</dt><dd class="meta">its fulfilment is required by <code>oDeliver</code> and <code>oRequestVaccineDosage</code></dd>
+          <dt>Access rules</dt><dd class="empty">none touch this obligation</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>Each time the Government submits a request, this obligation is created, and it becomes binding once the Government signals its agreement. The Government must then ensure that the Manufacturer's lead-time notice preceded that agreement, that both refer to the same request, and that the quantity requested is at least the minimum order and no more than the doses still available.</p>
+          <p class="tail">Delivery (<code>oDeliver</code>) cannot become binding until this obligation is fulfilled.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span>the Government submits a request (<code>requested</code>),</span>
+          <span class="kw">When</span><span>the Government agrees (<code>agreedFromG</code>),</span>
+          <span class="kw">Then</span><span>the Government must, for the Manufacturer, ensure that
+            <ul><li>the lead-time notice happened strictly before the agreement,</li><li>notice and agreement carry the request's <code>reqID</code>,</li><li><code>minQuantity</code> ≤ requested dosage ≤ <code>remain.value</code>.</li></ul></span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">Required by <code>oDeliver</code>, <code>oRequestVaccineDosage</code>.</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- oDeliver -->
+  <article class="norm" data-kind="obligation">
+    <header><span class="kind">Obligation</span><h3><code>oDeliver</code> · delivering the doses</h3><span class="src">line 92</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Manufacturer (<code>pfizer</code>) to the Government (<code>mcdc</code>)</dd>
+          <dt>Created</dt><dd>each time the Government submits a request (<code>requested</code>)</dd>
+          <dt>Binding</dt><dd>once the request has been agreed (<code>oAgreedOnRequest</code> fulfilled) and the Government confirms the shipping location (<code>confirmed</code>)</dd>
+          <dt>Must bring about</dt><dd>
+            <ul>
+              <li>the Manufacturer notified a delivery date (<code>notifiedOD</code>) strictly before the Government's confirmation</li>
+              <li>the doses are delivered (<code>delivered</code>, performed by the courier on the Manufacturer's behalf) to the confirmed location</li>
+              <li>the vaccine is FDA-approved</li>
+              <li>delivery takes place on the notified date, or on the extended date if the Manufacturer declared an outside risk (<code>outsideRisk</code>) for this request</li>
+              <li>no temperature, seal-opening, humidity, shock or light-exposure alert was raised for this request</li>
+              <li>notice, confirmation and delivery all refer to the same request (<code>reqID</code>)</li>
+            </ul></dd>
+          <dt>Deadline</dt><dd class="meta">implied: the notified delivery date (or the risk-extended date)</dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Access administered by</dt><dd>the Regulator (third party)</dd>
+          <dt>Depends on / feeds</dt><dd class="meta">needs <code>oAgreedOnRequest</code>; its fulfilment drives <code>oAssign</code>, <code>oPay</code>, <code>oRequestVaccineDosage</code></dd>
+          <dt>Access rules</dt><dd class="meta">Government may read <code>vaccineDose</code> and <code>delivered</code> (Rules 1, 3); courier may read the FDA flag (Rule 2); Manufacturer may not write sensor values (Rules 4–8)</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>Each request also creates a delivery obligation on the Manufacturer towards the Government. It becomes binding once the request has been agreed and the Government has confirmed where to ship. The Manufacturer must then have announced a delivery date before that confirmation, and the courier must deliver FDA-approved doses to the confirmed location on the announced date, or on the later date the Manufacturer declared if an outside risk arose for this request. Delivery does not count if any cold-chain alert (temperature, seal opening, humidity, shock or light exposure) was raised for the request. All of these events must concern the same request.</p>
+          <p class="tail">The Regulator administers access to this obligation. The Government can read the dose asset and the delivery record; the courier can read the FDA flag; the Manufacturer cannot alter sensor readings (Rules 1–8). Fulfilling it triggers the accounting and payment obligations.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span>the Government submits a request (<code>requested</code>),</span>
+          <span class="kw">When</span><span><code>oAgreedOnRequest</code> is fulfilled and the Government confirms the shipping location (<code>confirmed</code>),</span>
+          <span class="kw">Then</span><span>the Manufacturer must, for the Government, ensure that
+            <ul>
+              <li>the delivery-date notice (<code>notifiedOD</code>) came strictly before the confirmation,</li>
+              <li>the courier delivers (<code>delivered</code>) to the confirmed location,</li>
+              <li><code>vaccineDose.FDAapproval</code> is true,</li>
+              <li>delivery date = notified date, <b>or</b> an <code>outsideRisk</code> was declared for this request and delivery date = its extended date,</li>
+              <li>no <code>temperature</code>, <code>sealOpen</code>, <code>humidity</code>, <code>shock</code> or <code>lightExposure</code> alert exists for this request,</li>
+              <li>all events share the request's <code>reqID</code>.</li>
+            </ul></span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">Access administered by <code>regulator</code>. Rules 1–8 apply. Needs <code>oAgreedOnRequest</code>; drives <code>oAssign</code>, <code>oPay</code>, <code>oRequestVaccineDosage</code>.</span>
+        </div>
+      </div>
+      <p class="authornote"><b>Author's note:</b> a delivery obligation is achieved if the delivering operation satisfies all the conditions required in a particular order.</p>
+    </div>
+  </article>
+
+  <!-- oAssign -->
+  <article class="norm" data-kind="obligation">
+    <header><span class="kind">Obligation</span><h3><code>oAssign</code> · updating stock and amount due</h3><span class="src">line 109</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Government (<code>mcdc</code>) to the Manufacturer (<code>pfizer</code>)</dd>
+          <dt>Created</dt><dd>each time the Government submits a request</dd>
+          <dt>Binding</dt><dd>once doses are delivered for this request (<code>delivered</code>)</dd>
+          <dt>Must bring about</dt><dd>when the delivery obligation is fulfilled:
+            <ul>
+              <li>remaining doses are reduced by the delivered dosage (<code>remain.value := remain.value − delivered.dosage</code>)</li>
+              <li>the amount payable is set to delivered dosage × unit price (<code>paidAmount.value</code>)</li>
+            </ul></dd>
+          <dt>Deadline</dt><dd class="empty">none stated</dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Depends on / feeds</dt><dd class="meta">needs <code>oDeliver</code>; the amount it sets is what <code>oPay</code> requires; required by <code>oRequestVaccineDosage</code></dd>
+          <dt>Access rules</dt><dd class="meta">Rule 1 (Government reads <code>vaccineDose</code>), Rule 3 (Government reads <code>delivered</code>)</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>Once doses for a request have been delivered, the Government is responsible for the bookkeeping: when the delivery obligation is fulfilled, the stock of remaining doses is reduced by the quantity delivered and the amount payable becomes that quantity multiplied by the unit price.</p>
+          <p class="tail">The amount set here is exactly what the payment obligation later requires.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span>the Government submits a request,</span>
+          <span class="kw">When</span><span>doses are delivered for that request,</span>
+          <span class="kw">Then</span><span>the Government must, for the Manufacturer, ensure that on fulfilment of <code>oDeliver</code>: <code>remain.value</code> −= <code>delivered.dosage</code>; <code>paidAmount.value</code> := <code>delivered.dosage</code> × <code>vaccineDose.price</code>.</span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">Needs <code>oDeliver</code>; feeds <code>oPay</code>, <code>oRequestVaccineDosage</code>. Rules 1, 3 apply.</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <h2>Surviving obligations</h2>
+  <p class="lede">These remain enforceable after the contract has ended.</p>
+
+  <!-- oPay -->
+  <article class="norm" data-kind="surviving">
+    <header><span class="kind">Surviving obligation</span><h3><code>oPay</code> · paying for delivered doses</h3><span class="src">line 121</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Government (<code>mcdc</code>) to the Manufacturer (<code>pfizer</code>)</dd>
+          <dt>Created</dt><dd>each time the Government submits a request</dd>
+          <dt>Binding</dt><dd>once an invoice is recorded (<code>invoiced</code>) for this request, the vaccine is FDA-approved, delivery (<code>oDeliver</code>) has been fulfilled and preceded the invoice</dd>
+          <dt>Must bring about</dt><dd>
+            <ul>
+              <li>payment (<code>paid</code>) is made <b>strictly before 30 days after the invoice date</b></li>
+              <li>the amount paid equals the amount computed on delivery (<code>paidAmount.value</code>)</li>
+              <li>invoice and payment refer to the same request</li>
+            </ul></dd>
+          <dt>Deadline</dt><dd>30 days after <code>invoiced.date</code></dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Survives</dt><dd>yes: still owed after the contract terminates</dd>
+          <dt>Depends on</dt><dd class="meta"><code>oDeliver</code>, <code>oAssign</code> (for the amount)</dd>
+          <dt>Access rules</dt><dd class="meta">Rule 1 (Government reads <code>vaccineDose</code>), Rule 3 (Government reads <code>delivered</code>)</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>For each request, once the doses have been delivered and an invoice for them has been recorded, and provided the vaccine is FDA-approved, the Government must pay the Manufacturer within 30 days of the invoice date. The payment must match the amount computed on delivery and refer to the same request. This obligation survives the end of the contract.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span>the Government submits a request,</span>
+          <span class="kw">When</span><span>an invoice is recorded for it, <code>vaccineDose.FDAapproval</code> is true, <code>oDeliver</code> is fulfilled, and delivery came strictly before the invoice,</span>
+          <span class="kw">Then</span><span>the Government must pay the Manufacturer strictly before <code>invoiced.date</code> + 30 days, with <code>paid.amount</code> = <code>paidAmount.value</code> and matching <code>reqID</code>.</span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">Survives termination. Needs <code>oDeliver</code>, <code>oAssign</code>. Rules 1, 3 apply.</span>
+        </div>
+      </div>
+      <p class="authornote"><b>Author's note:</b> checking the agreed terms necessary to activate and complete the payment process.</p>
+    </div>
+  </article>
+
+  <!-- oWithdrewApproval -->
+  <article class="norm" data-kind="surviving">
+    <header><span class="kind">Surviving obligation</span><h3><code>oWithdrewApproval</code> · recording a lost FDA approval</h3><span class="src">line 129</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who owes</dt><dd>the Manufacturer (<code>pfizer</code>) to the Government (<code>mcdc</code>)</dd>
+          <dt>Created</dt><dd>when the contract starts (no trigger)</dd>
+          <dt>Binding</dt><dd>if the FDA withdraws approval (<code>withdrewApproval</code>)</dd>
+          <dt>Must bring about</dt><dd>the vaccine is marked as no longer FDA-approved (<code>vaccineDose.FDAapproval := false</code>)</dd>
+          <dt>Deadline</dt><dd class="empty">none stated</dd>
+          <dt>Otherwise</dt><dd>the obligation is violated</dd>
+          <dt>Survives</dt><dd>yes</dd>
+          <dt>Consequences</dt><dd class="meta">once the flag is false, no further delivery (<code>oDeliver</code>) or payment (<code>oPay</code>) can be fulfilled, since both require FDA approval</dd>
+          <dt>Access rules</dt><dd class="meta">Rule 9: the Manufacturer may read <code>withdrewApproval</code> (granted by the FDA); Rules 1–2 govern who reads the flag</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>If the FDA withdraws its approval, the Manufacturer must record that the vaccine is no longer FDA-approved. Because delivery and payment both require approval, this halts further deliveries and payments. The obligation survives the end of the contract.</p>
+          <p class="tail">The FDA grants the Manufacturer the right to see the withdrawal (Rule 9).</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">From</span><span>contract start,</span>
+          <span class="kw">When</span><span>the FDA withdraws approval (<code>withdrewApproval</code>),</span>
+          <span class="kw">Then</span><span>the Manufacturer must set <code>vaccineDose.FDAapproval</code> := false.</span>
+          <span class="kw">Otherwise</span><span>the obligation is violated.</span>
+          <span class="foot">Survives termination. Affects <code>oDeliver</code>, <code>oPay</code> and the precondition. Rule 9 applies.</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <h2>Powers</h2>
+
+  <!-- pStopWork -->
+  <article class="norm" data-kind="power">
+    <header><span class="kind">Power</span><h3><code>pStopWork</code> · terminating after a stop-work order</h3><span class="src">line 134</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who holds it</dt><dd>the Government (<code>mcdc</code>), over the Manufacturer (<code>pfizer</code>)</dd>
+          <dt>Arises</dt><dd>when any stop-work order occurs: by law (<code>lawStopWork</code>, issued by the Government) or by the Regulator on administrative, regulatory or judicial grounds</dd>
+          <dt>Exercised by</dt><dd>the Government issuing its own stop-work notice (<code>govStopWork</code>)</dd>
+          <dt>Effect</dt><dd><b>the contract is terminated</b></dd>
+          <dt>Access administered by</dt><dd class="empty">not specified (policy default: the Regulator)</dd>
+          <dt>Access rules</dt><dd class="empty">none touch this power</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>If work is ordered stopped, whether by law or by the Regulator on administrative, regulatory or judicial grounds, the Government gains the right to terminate the contract. It does so by issuing its own stop-work notice.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span><code>lawStopWork</code> or <code>adminStopWork</code> or <code>regulationStopWork</code> or <code>judicialStopWork</code> occurs,</span>
+          <span class="kw">Then</span><span>the Government <b>may</b>, against the Manufacturer,</span>
+          <span class="kw">By</span><span>issuing <code>govStopWork</code>,</span>
+          <span class="kw">Cause</span><span>the contract to be terminated.</span>
+        </div>
+      </div>
+      <p class="authornote"><b>Author's note:</b> mcdc has the power to stop the work if one of the following four events occurs.</p>
+    </div>
+  </article>
+
+  <!-- pTermination -->
+  <article class="norm" data-kind="power">
+    <header><span class="kind">Power</span><h3><code>pTermination</code> · closing a completed programme</h3><span class="src">line 137</span></header>
+    <div class="body">
+      <div class="render" data-style="a">
+        <dl class="sheet">
+          <dt>Who holds it</dt><dd>the Manufacturer (<code>pfizer</code>), over the Government (<code>mcdc</code>)</dd>
+          <dt>Arises</dt><dd>when the programme-completion obligation (<code>oRequestVaccineDosage</code>) is fulfilled</dd>
+          <dt>Exercised</dt><dd>at will (no further condition)</dd>
+          <dt>Effect</dt><dd><b>the contract is terminated</b></dd>
+          <dt>Depends on</dt><dd class="meta"><code>oRequestVaccineDosage</code></dd>
+          <dt>Access rules</dt><dd class="empty">none touch this power</dd>
+        </dl>
+      </div>
+      <div class="render" data-style="b" hidden>
+        <div class="prose">
+          <p>Once the procurement programme is complete, meaning the completion obligation has been fulfilled, the Manufacturer may terminate the contract at will. Payment for delivered doses remains owed afterwards.</p>
+        </div>
+      </div>
+      <div class="render" data-style="c" hidden>
+        <div class="rule">
+          <span class="kw">If</span><span><code>oRequestVaccineDosage</code> is fulfilled,</span>
+          <span class="kw">Then</span><span>the Manufacturer <b>may</b>, against the Government, unconditionally</span>
+          <span class="kw">Cause</span><span>the contract to be terminated.</span>
+          <span class="foot"><code>oPay</code> and <code>oWithdrewApproval</code> survive.</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <h2>Trade-offs at a glance</h2>
+  <div class="tablewrap">
+  <table class="compare">
+    <thead><tr><th></th><th>A · Fact sheet</th><th>B · Plain-English clause</th><th>C · If / then / otherwise</th></tr></thead>
+    <tbody>
+      <tr><td>Best for</td><td>Scanning, audit, checking nothing is missing</td><td>First reading by non-technical stakeholders; printed handouts</td><td>Analysts and students learning trigger / antecedent / consequent</td></tr>
+      <tr><td>Precision</td><td>Highest; empty slots are shown as empty</td><td>Good; long conjunctions get heavy</td><td>High; one-to-one with the formal structure</td></tr>
+      <tr><td>Length for <code>oDeliver</code></td><td>~12 lines</td><td>~7 lines</td><td>~10 lines</td></tr>
+      <tr><td>Cross-references (depends on, access rules)</td><td>Natural: dedicated slots</td><td>Trailing sentence, easy to skip</td><td>Footer line</td></tr>
+      <tr><td>Main risk</td><td>Reads like a form</td><td>Ambiguity in nested and/or</td><td>Jargon creep</td></tr>
+      <tr><td>Recommendation</td><td>Default</td><td>Second style, with Brief / Full toggle</td><td>Later, if requested (same fragments)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var notes = {
+      a: 'Labelled slots, one per element of the formal norm. Nothing is ever omitted; an empty slot says so. Best for checking completeness.',
+      b: 'One paragraph per norm, written as a plain-language clause. Cross-references and access rules follow in a quieter sentence.',
+      c: 'A conditional rule mirroring trigger → antecedent → consequent → violation. Closest to the formal structure while staying readable.'
+    };
+    var buttons = document.querySelectorAll('.switch button');
+    function setStyle(s) {
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.style === s)); });
+      document.querySelectorAll('.render').forEach(function (r) { r.hidden = r.dataset.style !== s; });
+      document.getElementById('style-note').textContent = notes[s];
+      try { localStorage.setItem('explain-style', s); } catch (e) {}
+    }
+    buttons.forEach(function (b) { b.addEventListener('click', function () { setStyle(b.dataset.style); }); });
+    var saved = null;
+    try { saved = localStorage.getItem('explain-style'); } catch (e) {}
+    if (saved && notes[saved]) setStyle(saved);
+  })();
+</script>

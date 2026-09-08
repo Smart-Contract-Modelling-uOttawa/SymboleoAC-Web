@@ -1,4 +1,5 @@
 import { API_BASE } from '../config.js';
+import type { ExplainModel } from '../explain/types.js';
 
 export type Pos = { line: number; col: number };
 export type Named = { name: string; line: number; col: number };
@@ -30,6 +31,16 @@ export type ContractModel = {
   rules: RuleModel[];
   acControllers: string[];
   counts: { preconditions: number; postconditions: number; constraints: number };
+  /** Structured explanation model (see web/src/explain/types.ts). Absent on old servers. */
+  explain?: ExplainModel;
+  /** Validation result of the same run; the Explain tab is gated on errors === 0. */
+  diagnostics?: ModelDiagnostics;
+};
+
+export type ModelDiagnostics = {
+  errors: number;
+  warnings: number;
+  issues: { severity: string; line: number; column: number; message: string }[];
 };
 
 export async function getModel(source: string): Promise<ContractModel | null> {

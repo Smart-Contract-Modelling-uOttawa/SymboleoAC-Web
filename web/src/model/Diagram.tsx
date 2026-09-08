@@ -5,10 +5,11 @@ import { MermaidView } from './MermaidView.js';
 const sanitize = (s: string) => (s || 'x').replace(/[^A-Za-z0-9_]/g, '_');
 const esc = (s: string) => s.replace(/"/g, "'");
 
-type Built = { def: string; ruleTips: { nodeId: string; tip: string }[] };
+export type Built = { def: string; ruleTips: { nodeId: string; tip: string }[] };
 
-function buildDefinition(model: ContractModel): Built {
-  const lines: string[] = ['graph LR'];
+/** Mermaid flowchart of parties, norms and rules (shared with the documentation export). */
+export function buildRulesDiagramDef(model: ContractModel, direction: 'LR' | 'TB' = 'LR'): Built {
+  const lines: string[] = [`graph ${direction}`];
   const styleLines: string[] = [];
   const parties = new Map<string, string>();
   const ruleNodeIds: string[] = [];
@@ -58,7 +59,7 @@ function buildDefinition(model: ContractModel): Built {
 export function Diagram({ model }: { model: ContractModel | null }) {
   const hasContent = !!model
     && (model.obligations.length + model.survivingObligations.length + model.powers.length + model.rules.length) > 0;
-  const built = useMemo(() => (model && hasContent ? buildDefinition(model) : null), [model, hasContent]);
+  const built = useMemo(() => (model && hasContent ? buildRulesDiagramDef(model) : null), [model, hasContent]);
 
   const onRendered = useCallback((el: HTMLElement) => {
     if (!built) return;

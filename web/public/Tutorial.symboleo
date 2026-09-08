@@ -50,7 +50,7 @@ Domain bikeRentalDomain
        from: Renter, to: Owner, performer: Renter, controller: Renter;
 
   // PROBLEM 4 (error): domain type names must start with an UPPERCASE letter.
-  //   FIX: rename to 'DamageReported' here AND in the declaration of 'damage' below.
+  //   FIX: rename, using F2, to 'DamageReported' here AND in the declaration of 'damage' below.
   damageReported isAn Event with Env cost: Number, performer: Owner, controller: Owner;
 
   // PROBLEM 5 (error): an attribute name may appear only once in a type.
@@ -73,8 +73,8 @@ Declarations
   owner: Owner with name := ownerP.name, org := ownerP.org, dept := ownerP.dept;
 
   // PROBLEM 9 (error): a declaration may only assign attributes that the type
-  //   declares; 'Renter' has no attribute 'email'.
-  //   FIX: remove ', email := "n/a"' (and, once PROBLEM 1 is fixed, assign org and dept).
+  //   declaration; 'owner' and 'plate' of 'Bike' are not.
+  //   FIX: add  , owner := owner, plate := "ABC 123"  to the assignment list.
   renter: Renter with name := renterP.name, email := "n/a";
 
   // PROBLEM 10 (error): every non-Env attribute must be initialized in a
@@ -92,10 +92,10 @@ Declarations
   // PROBLEM 12 (error): the first argument of Date.add must be a Date (or an
   //   event, meaning the moment it happened); 'Price' is a Number.
   //   FIX: use  Date.add(effDate, rentalDays, days).
-  returned: Returned with date := effDate, dueDate := Date.add(Price, rentalDays, days);
+  returned: Returned with date := effDate, dueDate := Date.add(Price, rentalDays, days), performer := renter, controller := renter;
 
   // PROBLEM 13 (error): type mismatch - 'amount' is a Number but is assigned a String.
-  //   FIX: assign a Number expression, e.g.,  amount := Price * rentalDays.
+  //   FIX: assign a Number expression, e.g.,  amount := price * rentalDays.
   paid: Paid with amount := "fifty", currency := curr,
         payDueDate := Date.add(effDate, rentalDays, days),
         from := renter, to := owner, performer := renter, controller := renter;
@@ -105,7 +105,7 @@ Declarations
   //   FIX: remove  cost := 0,  from the assignment list.
   damage: damageReported with cost := 0, performer := owner, controller := owner;
 
-  inspected: Inspected with date := effDate, performer := owner, controller := owner;
+  inspected: Inspected with date := effDate, performer := owner, controller := owner, result := "Good"; 
 
   // PROBLEM 15 (warning): the instance 'spare' is never used by any norm or rule.
   //   FIX: use it or delete this declaration.

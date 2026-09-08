@@ -131,6 +131,43 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
   `test-completion.mjs`, `test-ratelimit.mjs`, `test-idle.mjs`,
   `test-generate.mjs`.
 
+## Explain tab (plain-language explanations)
+
+- Plan and design rationale: `EXPLAIN-PLAN.md`; style prototype: `docs/explain-styles.html`.
+- `codegen-cli/.../ExplainJson.java` adds an `explain` block (structured, resolved model of
+  every norm + contract-level facts) and a `diagnostics` block to `--model` output. Wording
+  lives ONLY in `web/src/explain/verbalize.ts`; keep Java free of English sentences.
+- The tab shows explanations only when `diagnostics.errors == 0` (warnings tolerated).
+- Identifiers are shown exactly as written (never humanized/split); the declared type may
+  follow in parentheses. Event verbs come from the `EVENT_VERBS` lexicon in `verbalize.ts`.
+- Markdown export (`markdown.ts`) shares the slot logic with the view; keep them in sync.
+- `document.ts` builds the integrated documentation (one HTML file, no network); it reuses
+  `buildClassDiagramDef`, `buildRulesDiagramDef` and `matrixTableHtml` from `web/src/model`,
+  so changes to those views flow into the export automatically.
+- Specifier comments directly above a norm become "Specifier's note"; generated text never
+  mixes with them. Comments that look like commented-out code are dropped.
+- Verify with `node bridge/test-explain.mjs http://localhost:3030` against a running bridge.
+
+## Go to Definition / References / Hover / Rename (language server)
+
+- The upstream grammar refers to variables, norms and rules by plain `ID` (e.g.
+  `VariableRef: variable=ID`), not Xtext cross-references, so the stock Xtext services
+  find nothing at such references. `language-server/.../lsp/` adds name-based fallbacks,
+  all bound in `SymboleoLspSetup` and sharing `SymboleoNames` (identifier under cursor,
+  declarations by name, occurrences, kind descriptions):
+  - `SymboleoSymbolService` (DocumentSymbolService): definition + references.
+  - `SymboleoHoverService` (HoverService/IHoverService): kind, line, declaration excerpt,
+    and the specifier's comment above a norm.
+  - `SymboleoRenameService` (IRenameService2): prepareRename + rename of all identifier
+    tokens with that name (comments and attribute names after "." untouched); refuses
+    invalid identifiers, keywords and already-declared names.
+  Attribute names after "." and `obligations.X` are real cross-references and stay with
+  Xtext (definition, hover description and rename all work for them too).
+- Verify against a running bridge: `node bridge/test-definition.mjs`,
+  `node bridge/test-rename-hover.mjs`, `node bridge/test-lsp-nav.mjs`. Rebuilding the LS
+  jar requires killing running LSP JVMs (and the old bridge `node` process) first — Windows
+  locks the jar and `TaskStop` on `npx tsx` leaves the child `node` alive on :3030.
+
 ## Ground rules (carry-over from BUILD-PLAN)
 
 1. Pin every version in `VERSIONS.md`.
