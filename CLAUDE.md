@@ -161,10 +161,17 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
   - `SymboleoRenameService` (IRenameService2): prepareRename + rename of all identifier
     tokens with that name (comments and attribute names after "." untouched); refuses
     invalid identifiers, keywords and already-declared names.
+  - `SymboleoHighlightingCalculator` (ISemanticHighlightingCalculator, consumed by Xtext's
+    `SemanticTokensService`): LSP semantic tokens — class/enum/enumMember for types,
+    property for attributes, parameter, variable (roles, assets, data transfers), event
+    (event instances), function (obligations, powers), macro (rules); `declaration`
+    modifier at declaration sites. The web editor enables
+    `editor.semanticHighlighting.enabled` in `EditorPane.tsx`'s `vscodeApiConfig`.
   Attribute names after "." and `obligations.X` are real cross-references and stay with
   Xtext (definition, hover description and rename all work for them too).
 - Verify against a running bridge: `node bridge/test-definition.mjs`,
-  `node bridge/test-rename-hover.mjs`, `node bridge/test-lsp-nav.mjs`. Rebuilding the LS
+  `node bridge/test-rename-hover.mjs`, `node bridge/test-semantic-tokens.mjs`,
+  `node bridge/test-lsp-nav.mjs`. Rebuilding the LS
   jar requires killing running LSP JVMs (and the old bridge `node` process) first — Windows
   locks the jar and `TaskStop` on `npx tsx` leaves the child `node` alive on :3030.
 

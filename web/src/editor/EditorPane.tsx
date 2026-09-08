@@ -33,6 +33,11 @@ const vscodeApiConfig: MonacoVscodeApiConfig = {
   $type: 'classic',
   viewsConfig: { $type: 'EditorService' },
   logLevel: LogLevel.Warning,
+  // The language server provides semantic tokens (roles, events, assets, norms,
+  // rules, types coloured by kind); make sure the editor asks for and renders them.
+  userConfiguration: {
+    json: JSON.stringify({ 'editor.semanticHighlighting.enabled': true }),
+  },
 };
 
 export function EditorPane({ initialCode, initialName, onTextChanged, onEditorReady }: Props) {

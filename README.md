@@ -31,6 +31,10 @@ Beyond the editor, three tabs turn the contract into interactive diagrams — al
 
 ### Understand the contract — the Explain tab
 
+[![Explain tab](docs/screenshot-explain.jpg)](docs/screenshot-explain.jpg)
+
+*The Explain tab on the `VaccineProcurement` example: the contract's normal course and observations, then each obligation as a fact sheet. Identifiers are clickable; norm names link to their explanation.*
+
 The **Explain** tab describes the contract in plain language, for people who are not going to read SymboleoAC: lawyers, procurement officers, students. Everything in it is **derived mechanically from the specification** — no language model, no hand‑written text — so what you read is what the contract says.
 
 - **Every obligation, surviving obligation, and power** gets its own block: who owes what to whom, when the norm is created (its trigger), when it becomes binding (its antecedent), what must be brought about (its consequent), the deadline if one is stated, what happens otherwise, who administers access to it, which other norms it refers to and is referred to by, and which access‑control rules touch the resources it reads or writes.
@@ -45,6 +49,8 @@ The **Explain** tab describes the contract in plain language, for people who are
 
 **Save documentation…** (in the Explain tab) writes **one self‑contained HTML file** — no external resources, works offline, prints cleanly — that combines: the contract overview, the domain class diagram and the parties/norms diagram (each in a left‑to‑right and a top‑to‑bottom layout, fit‑to‑width or actual size), the access‑control matrix and rule list, the explanations in all three styles with the style and Brief/Full switches still working, and the **specification itself**, syntax‑coloured as in the editor, single‑spaced, with every reference hyperlinked to its declaration. Identifiers anywhere in the document jump to the line where they are declared. **Documentation** opens the same page in a new tab for a quick look.
 
+**Sample report:** the documentation generated for the `VaccineProcurement` example — [open it live](https://smart-contract-modelling-uottawa.github.io/SymboleoAC-Web/docs/VaccineProcurementC-documentation.html) (or see [`web/public/docs/VaccineProcurementC-documentation.html`](web/public/docs/VaccineProcurementC-documentation.html) in the repository; download it and open it offline).
+
 ---
 
 ## ✨ Top features
@@ -55,7 +61,7 @@ The **Explain** tab describes the contract in plain language, for people who are
 | 2 | **Live validation** | Type a contract and see errors/warnings instantly as red & yellow squiggles, straight from SymboleoAC's own `@Check` rules. |
 | 3 | **Context‑aware completion** | Press <kbd>Ctrl</kbd>+<kbd>Space</kbd> for grammar‑correct suggestions — keywords, roles, events, obligation references. |
 | 4 | **Signature help** | Typing inside a call shows its parameters with the active one highlighted — obligation/power constructors (`O`/`P`), predicates (`Happens`, `Occurs`, …), and `Math`/`String`/`Date` functions. |
-| 5 | **Instant syntax highlighting** | Keywords, types, operators and comments are colourised the moment the page loads (no server round‑trip needed). |
+| 5 | **Syntax + semantic highlighting** | Keywords, operators, strings and comments are colourised the moment the page loads (client‑side grammar). Once the language server has parsed the contract, **semantic tokens** colour every identifier by what it *is* — roles/assets, events, obligations/powers, access rules, domain types, enumeration values, attributes and parameters — at declarations and at every reference. |
 | 6 | **Go to Definition, Find References, Hover, Rename** | <kbd>F12</kbd> / <kbd>Ctrl</kbd>+click jumps from any reference — a role, event, asset, obligation, power, rule, type, parameter, or enumeration value — to its declaration; <kbd>Shift</kbd>+<kbd>F12</kbd> lists every use; hovering shows what an identifier is, where it is declared, and (for norms) the specifier's comment; <kbd>F2</kbd> renames it everywhere, refusing keywords and clashes. Works even though the SymboleoAC grammar references most names as plain identifiers. |
 | 7 | **Plain‑language explanations (Explain tab)** | Every obligation, surviving obligation and power — and the contract as a whole — explained for non‑specialists in three switchable styles, generated deterministically from the specification with clickable identifiers and cross‑norm links. See *Understand the contract* above. |
 | 8 | **Integrated documentation export** | One self‑contained, printable HTML file with the overview, both diagrams, the policy matrix, the explanations in all styles, and the syntax‑coloured, cross‑linked specification. |
@@ -119,7 +125,7 @@ The **Explain** tab describes the contract in plain language, for people who are
 
 - **Front end** — Vite + React + Monaco via `monaco-languageclient` v10. Syntax highlighting comes from a Monarch grammar auto‑extracted from the upstream `.xtext` grammar at build time.
 - **Bridge** — a small Node service that pipes LSP JSON‑RPC over a WebSocket to a per‑session `java` language server, and exposes `POST /generate` (JS code‑gen) and `POST /model` (structured model for the Outline and diagrams, plus the explanation model and diagnostics for the Explain tab).
-- **Language tooling** — two self‑contained jars built from the vendored [`SymboleoAC-IDE`](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-IDE) sources: the Xtext LSP server (extended with a formatter and with name‑based definition/references/hover/rename services, since the grammar references most names as plain identifiers rather than cross‑references), and a headless CLI that both generates JavaScript (`Symboleo2SC`) and extracts the structured model (`--model`), including the *explanation model* — a resolved, language‑independent description of every norm.
+- **Language tooling** — two self‑contained jars built from the vendored [`SymboleoAC-IDE`](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-IDE) sources: the Xtext LSP server (extended with a formatter, a semantic‑token calculator, and name‑based definition/references/hover/rename services, since the grammar references most names as plain identifiers rather than cross‑references), and a headless CLI that both generates JavaScript (`Symboleo2SC`) and extracts the structured model (`--model`), including the *explanation model* — a resolved, language‑independent description of every norm.
 - **Explanations** — the codegen CLI emits structure only (parties, trigger/antecedent/consequent trees with every reference resolved, cross‑references, touched resources, matching access rules, the specifier's comment); all wording is produced in the browser by a deterministic rule‑based verbalizer (`web/src/explain/verbalize.ts`), so styles and phrasing evolve without rebuilding the jars. Design notes: [`EXPLAIN-PLAN.md`](EXPLAIN-PLAN.md).
 - **TLS** — Caddy terminates HTTPS/WSS and auto‑provisions a Let's Encrypt certificate.
 
@@ -134,7 +140,7 @@ SymboleoAC-Web/
 ├─ web/              Vite/React/Monaco front end (deploys to GitHub Pages)
 │   └─ src/explain/  Explain tab: verbalizer, three styles, Markdown + documentation export
 ├─ bridge/           Node WebSocket↔LSP bridge + /generate + /model  (+ verify scripts)
-├─ language-server/  Maven module → Xtext LSP fat jar (+ formatter, definition/hover/rename services)
+├─ language-server/  Maven module → Xtext LSP fat jar (+ formatter, semantic tokens, definition/hover/rename)
 ├─ codegen-cli/      Maven module → headless JS generator + model/explanation extractor fat jar
 ├─ docs/             screenshots, Explain‑tab style prototype
 ├─ EXPLAIN-PLAN.md   design of the Explain tab and documentation export
@@ -200,6 +206,7 @@ node bridge/test-generate.mjs                              # POST /generate
 node bridge/test-explain.mjs     http://localhost:3030      # /model explanation + diagnostics blocks, all samples
 node bridge/test-definition.mjs  ws://localhost:3030/lsp    # go‑to‑definition probes
 node bridge/test-rename-hover.mjs ws://localhost:3030/lsp   # hover, prepareRename, rename probes
+node bridge/test-semantic-tokens.mjs ws://localhost:3030/lsp # semantic-token legend + token types
 ```
 
 ### Configuration (bridge env vars)

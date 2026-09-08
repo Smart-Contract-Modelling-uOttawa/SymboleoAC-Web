@@ -9,6 +9,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import org.eclipse.xtext.formatting2.IFormatter2;
+import org.eclipse.xtext.ide.editor.syntaxcoloring.ISemanticHighlightingCalculator;
 import org.eclipse.xtext.ide.server.hover.HoverService;
 import org.eclipse.xtext.ide.server.hover.IHoverService;
 import org.eclipse.xtext.ide.server.rename.IRenameService2;
@@ -47,6 +48,8 @@ public class SymboleoLspSetup extends SymboleoIdeSetup {
             binder.bind(HoverService.class).to(SymboleoHoverService.class);
             binder.bind(IHoverService.class).to(SymboleoHoverService.class);
             binder.bind(IRenameService2.class).to(SymboleoRenameService.class);
+            // Semantic tokens (roles/events/assets/norms/rules/types coloured by kind).
+            binder.bind(ISemanticHighlightingCalculator.class).to(SymboleoHighlightingCalculator.class);
         };
         return Guice.createInjector(Modules2.mixin(
                 new SymboleoRuntimeModule(),
