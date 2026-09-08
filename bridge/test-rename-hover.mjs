@@ -34,9 +34,9 @@ ws.on('message', async (data) => {
 
     // hover
     for (const [label, needle, word, expectRe] of [
-      ['hover variable', 'O(pfizer,mcdc', 'pfizer', /Declared role instance of type Manufacturer/],
+      ['hover variable', 'O(pfizer, mcdc', 'pfizer', /Declared role instance of type Manufacturer/],
       ['hover norm', 'Fulfilled(obligations.oAgreedOnRequest)', 'oAgreedOnRequest', /Obligation: mcdc owes pfizer[\s\S]*A Request must satisfy/],
-      ['hover attribute', 'delivered.reqID==requested.reqID', 'reqID', /Attribute of type String \(Env\) of Delivered/],
+      ['hover attribute', 'delivered.reqID == requested.reqID', 'reqID', /Attribute of type String \(Env\) of Delivered/],
       ['hover power', 'pStopWork:', 'pStopWork', /Power: held by mcdc against pfizer/],
     ]) {
       const h = await req('textDocument/hover', { textDocument: { uri }, position: pos(needle, word) });
@@ -45,7 +45,7 @@ ws.on('message', async (data) => {
     }
 
     // prepareRename + rename of a plain-identifier variable
-    const p = pos('O(pfizer,mcdc', 'pfizer');
+    const p = pos('O(pfizer, mcdc', 'pfizer');
     const prep = await req('textDocument/prepareRename', { textDocument: { uri }, position: p });
     check(prep && prep.start && prep.end && prep.end.character - prep.start.character === 6, 'prepareRename range = "pfizer"', JSON.stringify(prep));
     const we = await req('textDocument/rename', { textDocument: { uri }, position: p, newName: 'manufacturer' });
@@ -60,7 +60,7 @@ ws.on('message', async (data) => {
     check(bad && /keyword/.test(bad.message ?? ''), 'rename to a keyword is refused', JSON.stringify(bad?.message));
 
     // rename of an attribute goes through Xtext's own rename
-    const pa = pos('delivered.reqID==requested.reqID', 'reqID');
+    const pa = pos('delivered.reqID == requested.reqID', 'reqID');
     const wa = await req('textDocument/rename', { textDocument: { uri }, position: pa, newName: 'requestId' });
     const ea = wa?.changes?.[uri] ?? wa?.documentChanges?.flatMap((d) => d.edits ?? []) ?? [];
     check(ea.length >= 2, 'rename attribute reqID of Delivered (Xtext cross-references)', `${ea.length} edits`);

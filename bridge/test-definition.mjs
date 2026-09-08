@@ -17,10 +17,10 @@ function pos(needle, word) {
   return { line: (upto.match(/\n/g) || []).length, character: upto.length - upto.lastIndexOf('\n') - 1 };
 }
 const PROBES = [
-  ['variable reference', 'O(pfizer,mcdc', 'pfizer', /^\s*pfizer:/],
+  ['variable reference', 'O(pfizer, mcdc', 'pfizer', /^\s*pfizer:/],
   ['norm reference', 'Fulfilled(obligations.oAgreedOnRequest)', 'oAgreedOnRequest', /^\s*oAgreedOnRequest:/],
   ['domain type', 'requested : Requested', 'Requested', /^\s*Requested isA/],
-  ['attribute', 'delivered.reqID==requested.reqID', 'reqID', /Delivered isA Event/],
+  ['attribute', 'delivered.reqID == requested.reqID', 'reqID', /Delivered isA Event/],
   ['parameter', 'price := unitPrice', 'unitPrice', /unitPrice : Number/],
 ];
 const lines = source.split('\n');
