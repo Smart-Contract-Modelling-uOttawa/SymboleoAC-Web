@@ -13,7 +13,7 @@ import {
   symboleoacMonarchLanguage,
 } from './symboleoac.monarch.js';
 import { registerSymboleoacSignatureHelp } from './signatureHelp.js';
-import { applySymboleoacTheme } from './theme.js';
+import { applySymboleoacTheme, SYMBOLEOAC_THEME_ID, symboleoacTheme } from './theme.js';
 
 type Props = {
   initialCode: string;
@@ -68,7 +68,9 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       insertSpaces: true,
       fontSize: 13,
       scrollBeyondLastLine: false,
-      theme: 'vs-dark',
+      // Our theme, not 'vs-dark': the wrapper re-applies these options on every config
+      // pass, and updateOptions({theme}) switches Monaco's global theme.
+      theme: SYMBOLEOAC_THEME_ID,
     },
   }), [initialCode, initialName]);
 
@@ -99,6 +101,13 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
     if (typeof txt.modified === 'string') onTextChanged(txt.modified);
   }, [onTextChanged]);
 
+  // Define the theme as soon as the monaco-vscode-api services exist, i.e. before the
+  // editor is created with `theme: SYMBOLEOAC_THEME_ID` (an unknown theme name would fall
+  // back to the light 'vs' theme).
+  const handleApiInitDone = useCallback(() => {
+    monaco.editor.defineTheme(SYMBOLEOAC_THEME_ID, symboleoacTheme);
+  }, []);
+
   const handleEditorStartDone = useCallback((editorApp?: EditorApp) => {
     // The languageDef registers the Monarch grammar + language; configuration
     // (brackets, autoclosing pairs, comments) is set separately on monaco.languages.
@@ -121,6 +130,7 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       editorAppConfig={editorAppConfig}
       languageClientConfig={languageClientConfig}
       onTextChanged={handleTextChanged}
+      onVscodeApiInitDone={handleApiInitDone}
       onEditorStartDone={handleEditorStartDone}
       logLevel={LogLevel.Warning}
     />
