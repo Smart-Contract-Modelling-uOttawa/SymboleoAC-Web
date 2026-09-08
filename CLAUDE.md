@@ -94,6 +94,13 @@ cd language-server ; node test-handshake.mjs target/symboleoac-language-server-1
 ## Deploy
 
 See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
+- **Redeploy rule** (DEPLOY.md §6): a push to `main` touching `web/**` is deployed by the
+  `deploy-web` workflow automatically (Pages). A commit touching `language-server/**`,
+  `codegen-cli/**`, `bridge/src/**`, `bridge/Dockerfile`, `bridge/package*.json`, `infra/**`
+  or `upstream/**` needs a VPS redeploy: `ssh root@<VPS>`, `git pull`, then
+  `docker compose -f infra/docker-compose.yml up -d --build` (APP_DOMAIN / ALLOW_ORIGIN as
+  in DEPLOY.md). Test scripts and Markdown need no deployment. After a VPS redeploy, run
+  the bridge probes against `wss://<APP_DOMAIN>/lsp` and `https://<APP_DOMAIN>`.
 - `bridge/Dockerfile` is **turnkey/self-building**: a Maven stage compiles both
   jars from the vendored upstream sources, so the VPS needs only Docker
   (`docker compose -f infra/docker-compose.yml up -d --build`). Verified that
