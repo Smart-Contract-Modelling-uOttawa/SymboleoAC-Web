@@ -12,42 +12,51 @@
 
 ---
 
-![SymboleoAC Web IDE screenshot](docs/screenshot.png)
+## The IDE at a glance
 
-*The IDE at a glance — resizable panels:*
-1. **Outline (far left):** the contract's structure — Domain and Declarations broken down by category (Roles, Assets, Events, …), plus Obligations, Powers, and the AC Policy. Sections expand/collapse and every entry is clickable to jump to it in the editor.
-2. **Editor:** your SymboleoAC contract with syntax highlighting and live red‑squiggle diagnostics. Here the `MeatSale` example is open.
-3. **Generated files:** after clicking **Generate JS**, the multi‑file JavaScript package appears as a navigable tree (`domain/contract`, `domain/roles`, `domain/events`, …) with a **Download .zip** button.
-4. **File viewer (right):** the selected generated file, JavaScript‑syntax‑highlighted and read‑only, with a one‑click **Copy**.
+[![SymboleoAC Web IDE — the VaccineProcurement contract open, with semantic colours, a hover tooltip, and the generated JavaScript](docs/screenshot-overview.png)](docs/screenshot-overview.png)
 
-### Visualize the model
+*The `VaccineProcurement` example after **Generate JS**. Four resizable panels, left to right:*
 
-Beyond the editor, three tabs turn the contract into interactive diagrams — all auto‑generated from the live model as you type.
+1. **Outline:** the contract's structure — Domain and Declarations broken down by category (Roles, Assets, Events, …), then Obligations, Powers, and the AC Policy. Sections expand and collapse; every entry jumps to its line in the editor.
+2. **Editor:** the SymboleoAC contract with live diagnostics and **semantic colouring** — every identifier is coloured by what it *is* (teal types, orange roles and assets, pink events, green obligations and powers, coral access rules, light‑blue attributes, gold parameters). Hovering a name tells you what it is and where it is declared (here the `Alert` data transfer, with its attributes) and, for a norm, what the specifier wrote about it; <kbd>F12</kbd> jumps to the declaration, <kbd>Shift</kbd>+<kbd>F12</kbd> lists the uses, <kbd>F2</kbd> renames.
+3. **Generated files:** the multi‑file JavaScript package as a navigable tree (`domain/contract`, `domain/roles`, `domain/events`, …) with a **Download .zip** button.
+4. **File viewer:** the selected generated file, syntax‑highlighted and read‑only, with one‑click **Copy**.
+
+The tab bar above the right‑hand panel switches between **Generated files**, **Diagnostics**, the three diagram views (**Domain**, **Rules**, **Policy**) and the **Explain** tab described below, so a diagram or an explanation can stay open beside the editor.
+
+## Visualize the model
+
+Three tabs turn the contract into interactive diagrams, all regenerated from the live model as you type.
 
 | Domain class diagram | Rules network | Policy matrix |
 |---|---|---|
 | [![Domain view](docs/screenshot-domain.png)](docs/screenshot-domain.png) | [![Rules view](docs/screenshot-rules.png)](docs/screenshot-rules.png) | [![Policy view](docs/screenshot-policy.png)](docs/screenshot-policy.png) |
-| **Domain** — the domain ontology as a UML class diagram, colour‑coded by category (roles, assets, events, data transfers, enumerations), with inheritance, stereotypes, and named associations. Zoom and pan; relayouts to fill the panel. | **Rules** — access‑control rules as a colour‑coded network: parties with their obligations/powers, and rules pointing to their target role (green = Grant, red = Revoke). Hover a rule for the *On*/*by* details. | **Policy** — the access‑control policy as a roles × resources matrix, with ✓ Grant (green) / ✗ Revoke (red). |
+| **Domain** — the domain ontology as a UML class diagram, colour‑coded by category (yellow roles, green assets, blue events, pink data transfers, purple enumerations), with inheritance, stereotypes such as `«thirdParty»`, and named associations (`performer`, `controller`, `shipToLocation`, …). Zoom and pan; relayouts to fill the panel. | **Rules** — the parties and their norms: each obligation or power is an arrow from debtor to creditor (dotted for powers), and each access‑control rule points at the role it grants (green) or revokes (red) access for, labelled with the permission. Hover a rule for its *On*/*by* details. | **Policy** — the access‑control policy as a roles × resources matrix, with ✓ Grant (green) / ✗ Revoke (red). |
 
-### Understand the contract — the Explain tab
+## Understand the contract — the Explain tab
 
-[![Explain tab](docs/screenshot-explain.jpg)](docs/screenshot-explain.jpg)
+[![Explain tab beside the editor: the oDeliver obligation as a fact sheet](docs/screenshot-explain.png)](docs/screenshot-explain.png)
 
-*The Explain tab on the `VaccineProcurement` example: the contract's normal course and observations, then each obligation as a fact sheet. Identifiers are clickable; norm names link to their explanation.*
+*The **Explain** tab side by side with the editor. The `oDeliver` obligation is a fact sheet: who owes what to whom, when the obligation is created, when it becomes binding, what must be brought about, the deadline, what happens otherwise, the norms it depends on, and the access rules that touch the resources it reads. Thirteen formal conjuncts have become seven sentences: the three `reqID` equalities are one correlation clause, the five sensor exclusions one absence clause. Every identifier is coloured as in the editor and clicks through to its line; hovering shows its declaration.*
 
-The **Explain** tab describes the contract in plain language, for people who are not going to read SymboleoAC: lawyers, procurement officers, students. Everything in it is **derived mechanically from the specification** — no language model, no hand‑written text — so what you read is what the contract says.
+The Explain tab describes the contract in plain language, for people who are not going to read SymboleoAC: lawyers, procurement officers, students. Everything in it is **derived mechanically from the specification** — no language model, no hand‑written text — so what you read is what the contract says.
+
+| The contract as a whole | Gherkin style |
+|---|---|
+| [![Contract overview](docs/screenshot-explain-contract.png)](docs/screenshot-explain-contract.png) | [![Gherkin style](docs/screenshot-gherkin.png)](docs/screenshot-gherkin.png) |
+| The top of the tab, with its toolbar (style, Brief/Full, **Copy Markdown**, **Save Markdown…**, **Save .feature…**, **Documentation**, **Save documentation…**). The **Contract** block summarises the whole agreement: the parties (signatories vs. third parties), what is fixed when the contract is created, how it can end, what is still owed afterwards, who controls access, the sensors that monitor it, the *normal course* of its obligations in dependency order, and a few observations. | The same explanations rendered as a **Gherkin** feature file: every norm is a `Rule`, with one `Scenario` per outcome (*fulfilled* / *violated* for obligations, *exercised* for powers). A trigger with several alternatives, such as the four stop‑work orders of `pStopWork`, becomes a `Scenario Outline` with an `Examples` table. Identifiers are double‑quoted so Cucumber step definitions can bind them; the output parses with the reference parser. |
 
 - **Every obligation, surviving obligation, and power** gets its own block: who owes what to whom, when the norm is created (its trigger), when it becomes binding (its antecedent), what must be brought about (its consequent), the deadline if one is stated, what happens otherwise, who administers access to it, which other norms it refers to and is referred to by, and which access‑control rules touch the resources it reads or writes.
-- **The contract as a whole**: the parties (signatories vs. third parties), what is fixed when the contract is created, the preconditions, how it can end, what is still owed after it ends, who controls access, the sensors that monitor it, the *normal course* of its obligations in dependency order, and a few observations (declared-but-unused elements, missing postconditions or constraints).
-- **Three styles**, switchable at any time: a **fact sheet** (labelled slots, nothing omitted), a **plain‑English clause** (one paragraph per norm, with enumerated conditions), and **Gherkin**, the language of behaviour‑driven development: the contract is a `Feature` (preconditions as `Background`), every norm a `Rule` with one scenario per outcome (*fulfilled* / *violated* for obligations, *exercised* for powers), disjunctive triggers as a `Scenario Outline` with an `Examples` table, identifiers double‑quoted for Cucumber step definitions. The output parses with the reference parser (`@cucumber/gherkin`); **Save .feature…** exports the whole contract. A **Brief / Full** toggle hides or shows the secondary slots.
+- **Three styles**, switchable at any time: a **fact sheet** (labelled slots, nothing omitted), a **plain‑English clause** (one paragraph per norm, with enumerated conditions), and **Gherkin** (the contract is a `Feature`, the preconditions its `Background`). A **Brief / Full** toggle hides or shows the secondary slots.
 - **Specifier's notes**: the comment written directly above a norm in the source is shown with it, clearly separated from the generated text.
-- **Faithful wording**: identifiers appear exactly as written (`mcdc`, `delivered.reqID`) and click through to their line in the editor; every reference to another norm is a hyperlink to its block; formal notions (`ShappensBefore` → *strictly before*, `true` antecedent → *immediately*) are rendered without softening them, and repeated patterns are collapsed into one sentence (e.g. several `x.reqID == y.reqID` comparisons become "all refer to the same `reqID`"). Slot labels carry glossary tooltips.
+- **Faithful wording**: identifiers appear exactly as written (`mcdc`, `delivered.reqID`); every reference to another norm is a hyperlink to its block; formal notions (`ShappensBefore` → *strictly before*, `true` antecedent → *immediately*) are rendered without softening them, and repeated patterns are collapsed into one sentence. Slot labels carry glossary tooltips.
 - Explanations are shown only when the specification has **no validation errors** (warnings are tolerated); otherwise the tab lists the errors with clickable line numbers.
 - **Copy Markdown / Save Markdown** export the explanations in the current style; **Save .feature…** exports the Gherkin rendering of the whole contract.
 
-### Take it with you — integrated documentation
+## Take it with you — integrated documentation
 
-**Save documentation…** (in the Explain tab) writes **one self‑contained HTML file** — no external resources, works offline, prints cleanly — that combines: the contract overview, the domain class diagram and the parties/norms diagram (each in a left‑to‑right and a top‑to‑bottom layout, fit‑to‑width or actual size), the access‑control matrix and rule list, the explanations in all three styles with the style and Brief/Full switches still working, and the **specification itself**, syntax‑coloured as in the editor, single‑spaced, with every reference hyperlinked to its declaration. Identifiers anywhere in the document jump to the line where they are declared. **Documentation** opens the same page in a new tab for a quick look.
+**Save documentation…** (in the Explain tab) writes **one self‑contained HTML file** — no external resources, works offline, prints cleanly — that combines: the contract overview, the domain class diagram and the parties/norms diagram (each in a left‑to‑right and a top‑to‑bottom layout, fit‑to‑width or actual size), the access‑control matrix and rule list, the explanations in all three styles with the style and Brief/Full switches still working, and the **specification itself**, coloured as in the editor, single‑spaced, with every reference hyperlinked to its declaration. Identifiers anywhere in the document jump to the line where they are declared. **Documentation** opens the same page in a new tab for a quick look.
 
 **Sample report:** the documentation generated for the `VaccineProcurement` example — [open it live](https://smart-contract-modelling-uottawa.github.io/SymboleoAC-Web/docs/VaccineProcurementC-documentation.html) (or see [`web/public/docs/VaccineProcurementC-documentation.html`](web/public/docs/VaccineProcurementC-documentation.html) in the repository; download it and open it offline).
 
@@ -85,7 +94,7 @@ The **Explain** tab describes the contract in plain language, for people who are
 3. **Edit** — diagnostics update live; <kbd>Ctrl</kbd>+<kbd>Space</kbd> for completion; parameter hints appear inside calls (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> to force); <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> to format.
 4. **Navigate** — <kbd>F12</kbd> (or <kbd>Ctrl</kbd>+click) on any name jumps to its declaration, <kbd>Shift</kbd>+<kbd>F12</kbd> lists its uses, hovering describes it, <kbd>F2</kbd> renames it everywhere; the **Outline** lists every element — click to jump, expand/collapse the sections.
 5. **Visualize** — switch to the **Domain**, **Rules**, or **Policy** tabs to see the model as diagrams (zoom and hover for detail).
-6. **Understand** — open the **Explain** tab for plain‑language explanations of each obligation and power and of the whole contract; pick a style (fact sheet, plain‑English clause, if/then/otherwise) and Brief or Full; click identifiers to jump to the source and norm names to jump between explanations. Requires an error‑free specification.
+6. **Understand** — open the **Explain** tab for plain‑language explanations of each obligation and power and of the whole contract; pick a style (fact sheet, plain‑English clause, Gherkin) and Brief or Full; click identifiers to jump to the source and norm names to jump between explanations. Requires an error‑free specification.
 7. **Document** — **Save documentation…** (Explain tab) writes one self‑contained HTML file with the overview, diagrams, policy matrix, explanations, and the cross‑linked specification; **Copy/Save Markdown** export the explanations alone.
 8. **Generate JS** — click the button; browse the generated files; **Copy** a file or **Download .zip**.
 9. **Share** — click **Share** to copy a self‑contained link to the current contract.
