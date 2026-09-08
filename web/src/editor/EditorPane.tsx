@@ -13,6 +13,7 @@ import {
   symboleoacMonarchLanguage,
 } from './symboleoac.monarch.js';
 import { registerSymboleoacSignatureHelp } from './signatureHelp.js';
+import { applySymboleoacTheme } from './theme.js';
 
 type Props = {
   initialCode: string;
@@ -106,6 +107,9 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       symboleoacLanguageConfiguration,
     );
     registerSymboleoacSignatureHelp(monaco, SYMBOLEOAC_LANGUAGE_ID);
+    // Distinct colours per kind of element (roles, events, norms, rules, types, ...):
+    // the theme maps the server's semantic token types to colours.
+    applySymboleoacTheme(monaco);
     const editor = editorApp?.getEditor();
     if (editor) onEditorReady?.(editor);
   }, [onEditorReady]);
