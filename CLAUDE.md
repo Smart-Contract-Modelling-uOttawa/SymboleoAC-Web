@@ -178,6 +178,11 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
     (event instances), function (obligations, powers), macro (rules); `declaration`
     modifier at declaration sites. The web editor enables
     `editor.semanticHighlighting.enabled` in `EditorPane.tsx`'s `vscodeApiConfig`.
+    Colours come from `web/src/editor/theme.ts` (`symboleoac-dark`, matched by semantic
+    token TYPE NAME, not TextMate scope). Monaco's theme is global and the React wrapper
+    re-applies `editorOptions` on every config pass, so `editorOptions.theme` must be
+    `SYMBOLEOAC_THEME_ID` (defined in `onVscodeApiInitDone`) and no other
+    `monaco.editor.create(...)` may pass a `theme` option.
   Attribute names after "." and `obligations.X` are real cross-references and stay with
   Xtext (definition, hover description and rename all work for them too).
 - Verify against a running bridge: `node bridge/test-definition.mjs`,
