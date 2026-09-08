@@ -5,6 +5,12 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { slots, overview, plain } from '../../web/src/explain/verbalize.ts';
 import { toMarkdown } from '../../web/src/explain/markdown.ts';
+import { gherkinFeature, featureText } from '../../web/src/explain/gherkin.ts';
+// Reference Gherkin parser, installed as a dev dependency of bridge/.
+import { createRequire } from 'node:module';
+const bridgeRequire = createRequire(join(__dirname, '..', '..', 'bridge', 'package.json'));
+const { Parser, AstBuilder, GherkinClassicTokenMatcher } = bridgeRequire('@cucumber/gherkin');
+const { IdGenerator } = bridgeRequire('@cucumber/messages');
 
 const dir = join(__dirname, 'out', 'corpus');
 const outDir = join(__dirname, 'out');
@@ -80,7 +86,30 @@ const IDIOMS: [string, RegExp][] = [
 ];
 
 // ------------------------------------------------------------------ run
-type Row = { file: string; contract: string; norms: number; obligations: number; surviving: number; powers: number; rules: number; constructs: number; identifiers: number; normLinks: number; warnings: number };
+type Row = { file: string; contract: string; norms: number; obligations: number; surviving: number; powers: number; rules: number; constructs: number; identifiers: number; normLinks: number; warnings: number;
+  gRules: number; gScenarios: number; gOutlines: number; gSteps: number; gParse: 'ok' | string };
+mkdirSync(join(outDir, 'features'), { recursive: true });
+const parser = new Parser(new AstBuilder(IdGenerator.uuid()), new GherkinClassicTokenMatcher());
+function gherkinCheck(model: any, name: string) {
+  const text = featureText(gherkinFeature(model, 'full'));
+  writeFileSync(join(outDir, 'features', `${name}.feature`), text);
+  let gParse: 'ok' | string = 'ok';
+  let gRules = 0, gScenarios = 0, gOutlines = 0, gSteps = 0;
+  try {
+    const doc: any = parser.parse(text);
+    const walkChildren = (children: any[]) => {
+      for (const c of children ?? []) {
+        if (c.rule) { gRules++; walkChildren(c.rule.children); }
+        if (c.background) gSteps += c.background.steps?.length ?? 0;
+        if (c.scenario) { gScenarios++; if (c.scenario.examples?.length) gOutlines++; gSteps += c.scenario.steps?.length ?? 0; }
+      }
+    };
+    walkChildren(doc.feature?.children);
+  } catch (e: any) {
+    gParse = String(e?.message ?? e).split('\n')[0].slice(0, 160);
+  }
+  return { gRules, gScenarios, gOutlines, gSteps, gParse };
+}
 const rows: Row[] = [];
 const census: Census = {}; const idioms: Census = {};
 let totalNorms = 0, totalClauses = 0;
@@ -112,7 +141,8 @@ for (const f of files) {
   texts.push(...[ov.summary, ...ov.preconditions, ...ov.constraints, ...ov.ends, ...ov.lifecycle].map(plain));
   for (const [k, v] of Object.entries(local)) bump(census, k, v);
   for (const [name, re] of IDIOMS) for (const t of texts) { const h = t.match(re); if (h) bump(idioms, name, h.length); }
-  rows.push({ file: f.replace(/\.json$/, ''), contract: m.explain.contract.name, norms: m.explain.norms.length,
+  const g = gherkinCheck(m, f.replace(/\.json$/, ''));
+  rows.push({ ...g, file: f.replace(/\.json$/, ''), contract: m.explain.contract.name, norms: m.explain.norms.length,
     obligations: m.explain.norms.filter((n: any) => n.kind === 'obligation').length,
     surviving: m.explain.norms.filter((n: any) => n.kind === 'survivingObligation').length,
     powers: m.explain.norms.filter((n: any) => n.kind === 'power').length, rules: rules.length,
@@ -165,10 +195,11 @@ const esc = (s: string) => s.replace(/([&%$#_{}])/g, '\\$1').replace(/`([^`]*)`/
 
 let md = `# Corpus statistics (generated ${new Date().toISOString().slice(0, 10)})\n\n`;
 md += `Specifications with an explanation model and no validation errors: **${rows.length}** (of ${files.length} local .symboleo files; ${skipped.length} skipped — see end). Norms explained: **${totalNorms}**; clauses produced: **${totalClauses}**.\n\n`;
-md += `## Per specification\n\n| Specification | Contract | Obligations | Surviving | Powers | AC rules | Constructs | Identifier links | Norm links | Warnings |\n|---|---|--:|--:|--:|--:|--:|--:|--:|--:|\n`;
-for (const r of rows) md += `| ${r.file} | ${r.contract} | ${r.obligations} | ${r.surviving} | ${r.powers} | ${r.rules} | ${r.constructs} | ${r.identifiers} | ${r.normLinks} | ${r.warnings} |\n`;
-const tot = rows.reduce((a, r) => ({ obligations: a.obligations + r.obligations, surviving: a.surviving + r.surviving, powers: a.powers + r.powers, rules: a.rules + r.rules, constructs: a.constructs + r.constructs, identifiers: a.identifiers + r.identifiers, normLinks: a.normLinks + r.normLinks }), { obligations: 0, surviving: 0, powers: 0, rules: 0, constructs: 0, identifiers: 0, normLinks: 0 });
-md += `| **Total** | | **${tot.obligations}** | **${tot.surviving}** | **${tot.powers}** | **${tot.rules}** | **${tot.constructs}** | **${tot.identifiers}** | **${tot.normLinks}** | |\n\n`;
+md += `## Per specification\n\n| Specification | Contract | Obligations | Surviving | Powers | AC rules | Constructs | Identifier links | Norm links | Warnings | Gherkin rules | Scenarios | Outlines | Steps | Parses |\n|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|---|\n`;
+for (const r of rows) md += `| ${r.file} | ${r.contract} | ${r.obligations} | ${r.surviving} | ${r.powers} | ${r.rules} | ${r.constructs} | ${r.identifiers} | ${r.normLinks} | ${r.warnings} | ${r.gRules} | ${r.gScenarios} | ${r.gOutlines} | ${r.gSteps} | ${r.gParse} |\n`;
+const tot = rows.reduce((a, r) => ({ obligations: a.obligations + r.obligations, surviving: a.surviving + r.surviving, powers: a.powers + r.powers, rules: a.rules + r.rules, constructs: a.constructs + r.constructs, identifiers: a.identifiers + r.identifiers, normLinks: a.normLinks + r.normLinks, gRules: a.gRules + r.gRules, gScenarios: a.gScenarios + r.gScenarios, gOutlines: a.gOutlines + r.gOutlines, gSteps: a.gSteps + r.gSteps, parsed: a.parsed + (r.gParse === 'ok' ? 1 : 0) }), { obligations: 0, surviving: 0, powers: 0, rules: 0, constructs: 0, identifiers: 0, normLinks: 0, gRules: 0, gScenarios: 0, gOutlines: 0, gSteps: 0, parsed: 0 });
+md += `| **Total** | | **${tot.obligations}** | **${tot.surviving}** | **${tot.powers}** | **${tot.rules}** | **${tot.constructs}** | **${tot.identifiers}** | **${tot.normLinks}** | | **${tot.gRules}** | **${tot.gScenarios}** | **${tot.gOutlines}** | **${tot.gSteps}** | ${tot.parsed}/${rows.length} |\n\n`;
+md += `## Gherkin\n\nEach contract rendered as one Feature (\`out/features/*.feature\`), parsed with @cucumber/gherkin: ${tot.parsed} of ${rows.length} parse without error; ${tot.gRules} Rules (one per norm), ${tot.gScenarios} scenarios (${tot.gOutlines} of them Scenario Outlines with Examples), ${tot.gSteps} steps.\n\n`;
 md += `## Idiom firings in the generated text\n\n| Idiom | Firings |\n|---|--:|\n`;
 for (const [name, re] of IDIOMS) md += `| ${name} | ${idioms[name] ?? 0} |\n`;
 md += `\n## Rule table: construct → phrasing, with corpus frequency\n\n| Construct (explanation model) | Occurrences | Phrasing rule |\n|---|--:|---|\n`;
@@ -179,9 +210,9 @@ writeFileSync(join(outDir, 'corpus-stats.md'), md);
 // LaTeX
 let tex = `% Generated by stats.ts on ${new Date().toISOString().slice(0, 10)}. Requires booktabs.\n`;
 tex += `\\begin{table}[t]\\centering\\small\n\\caption{Corpus: error-free SymboleoAC specifications and the explanations generated for them.}\\label{tab:corpus}\n`;
-tex += `\\begin{tabular}{llrrrrrrr}\\toprule\nSpecification & Contract & Obl. & Surv. & Pow. & Rules & Constructs & Id.\\ links & Norm links\\\\\\midrule\n`;
-for (const r of rows) tex += `${esc(r.file)} & ${esc(r.contract)} & ${r.obligations} & ${r.surviving} & ${r.powers} & ${r.rules} & ${r.constructs} & ${r.identifiers} & ${r.normLinks}\\\\\n`;
-tex += `\\midrule\nTotal & & ${tot.obligations} & ${tot.surviving} & ${tot.powers} & ${tot.rules} & ${tot.constructs} & ${tot.identifiers} & ${tot.normLinks}\\\\\\bottomrule\n\\end{tabular}\\end{table}\n\n`;
+tex += `\\begin{tabular}{lrrrrrrrrrr}\\toprule\nContract & Obl. & Surv. & Pow. & Rules & Constructs & Id.\\ links & Norm links & Scen. & Steps & Parses\\\\\\midrule\n`;
+for (const r of rows) tex += `${esc(r.contract)} & ${r.obligations} & ${r.surviving} & ${r.powers} & ${r.rules} & ${r.constructs} & ${r.identifiers} & ${r.normLinks} & ${r.gScenarios} & ${r.gSteps} & ${r.gParse === 'ok' ? '\\checkmark' : 'no'}\\\\\n`;
+tex += `\\midrule\nTotal & ${tot.obligations} & ${tot.surviving} & ${tot.powers} & ${tot.rules} & ${tot.constructs} & ${tot.identifiers} & ${tot.normLinks} & ${tot.gScenarios} & ${tot.gSteps} & ${tot.parsed}/${rows.length}\\\\\\bottomrule\n\\end{tabular}\\end{table}\n\n`;
 tex += `\\begin{table}[t]\\centering\\small\n\\caption{Verbalization rules: SymboleoAC constructs, their occurrences in the corpus, and the phrasing produced.}\\label{tab:rules}\n\\begin{tabular}{p{4.2cm}rp{7.3cm}}\\toprule\nConstruct & n & Phrasing\\\\\\midrule\n`;
 for (const [k, v] of sortDesc(census)) if (PHRASING[k]) tex += `${esc(k)} & ${v} & ${esc(PHRASING[k])}\\\\\n`;
 tex += `\\bottomrule\\end{tabular}\\end{table}\n\n`;

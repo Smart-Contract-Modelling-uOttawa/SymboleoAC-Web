@@ -96,7 +96,7 @@ export function humanize(id: string): string {
 }
 
 /** Present-tense verb phrases for common event types. Fallback is generic; see eventPhrase(). */
-const EVENT_VERBS: Record<string, string> = {
+export const EVENT_VERBS: Record<string, string> = {
   Requested: 'submits a request',
   Invoiced: 'records an invoice',
   Paid: 'pays',

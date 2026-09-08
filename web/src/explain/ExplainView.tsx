@@ -6,9 +6,10 @@ import {
   GLOSSARY, capitalize, joinList, overview, rulePhrase, slots,
   type NormSlots, type OverviewSlots, type Rich, type Frag,
 } from './verbalize.js';
-import { toMarkdown, proseRich, ruleRows, ruleFoot, type Detail } from './markdown.js';
+import { toMarkdown, proseRich, type Detail } from './markdown.js';
 import { saveBlobAs } from '../fileio.js';
 import { buildDocumentHtml } from './document.js';
+import { gherkinNorm, gherkinFeature, featureText, type GLine } from './gherkin.js';
 
 export type ExplainStyle = 'a' | 'b' | 'c';
 const STYLE_KEY = 'symboleoac.explainStyle';
@@ -16,7 +17,7 @@ const DETAIL_KEY = 'symboleoac.explainDetail';
 const STYLES: { id: ExplainStyle; label: string; hint: string }[] = [
   { id: 'a', label: 'Fact sheet', hint: 'Labelled slots, one per element of the formal norm; empty slots are shown as empty.' },
   { id: 'b', label: 'Plain-English clause', hint: 'One paragraph per norm, written as a plain-language clause.' },
-  { id: 'c', label: 'If / then / otherwise', hint: 'A conditional rule mirroring trigger, condition, consequence and violation.' },
+  { id: 'c', label: 'Gherkin', hint: 'Each norm as a Gherkin Rule with one scenario per outcome (fulfilled, violated, exercised): Given the trigger and condition, When the events, Then the norm state. Parses with the reference Gherkin parser; identifiers are quoted for step definitions.' },
 ];
 
 // Dark IDE palette (matches the other right-hand tabs).
@@ -121,6 +122,11 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
     const ok = await saveBlobAs(`${ex.contract.name || 'contract'}-explained.md`, new Blob([text], { type: 'text/markdown' }), { 'text/markdown': ['.md'] });
     if (ok) flash('Markdown saved');
   };
+  const saveFeature = async () => {
+    const text = featureText(gherkinFeature(model, detail));
+    const ok = await saveBlobAs(`${ex.contract.name || 'contract'}.feature`, new Blob([text], { type: 'text/plain' }), { 'text/plain': ['.feature'] });
+    if (ok) flash('Feature file saved');
+  };
   // Integrated documentation: overview + diagrams + policy + explanations + source, one HTML file.
   const buildDoc = async () => {
     flash('Building documentation…');
@@ -178,6 +184,7 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
           </div>
           <button type="button" onClick={copyMd} style={toolBtn} title="Copy the whole explanation as Markdown">Copy Markdown</button>
           <button type="button" onClick={saveMd} style={toolBtn} title="Save the whole explanation as a .md file">Save Markdown…</button>
+          <button type="button" onClick={saveFeature} style={toolBtn} title="Save the contract as a Gherkin .feature file (Feature, Background, one Rule per norm)">Save .feature…</button>
           <span style={{ width: 1, height: 18, background: C.line }} />
           <button type="button" onClick={previewDoc} style={toolBtn} title="Open the integrated documentation (overview, diagrams, policy, explanations, source) in a new tab">Documentation</button>
           <button type="button" onClick={saveDoc} style={toolBtn} title="Save the integrated documentation as one self-contained HTML file">Save documentation…</button>
@@ -196,7 +203,7 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
             <section key={kind}>
               <H2>{label}</H2>
               {lede && <p style={{ margin: '0 0 8px', color: C.muted }}>{lede}</p>}
-              {ns.map((n) => <NormBlock key={n.name} s={slots(n, rules)} style={style} detail={detail} ctx={ctx!} />)}
+              {ns.map((n) => <NormBlock key={n.name} n={n} s={slots(n, rules)} style={style} detail={detail} ctx={ctx!} />)}
             </section>
           );
         })}
@@ -302,7 +309,7 @@ function Overview({ ov, ctx, contractName }: { ov: OverviewSlots; ctx: Ctx; cont
 
 // ------------------------------------------------------------------ norm blocks
 
-function NormBlock({ s, style, detail, ctx }: { s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx }) {
+function NormBlock({ n, s, style, detail, ctx }: { n: ExplainNorm; s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx }) {
   const [color, soft] = kindColor(s.kind);
   return (
     <article id={`explain-norm-${s.name}`} style={{ marginTop: 12, border: `1px solid ${C.line}`, borderRadius: 6, background: C.panel, overflow: 'hidden', transition: 'outline .2s' }}>
@@ -314,7 +321,7 @@ function NormBlock({ s, style, detail, ctx }: { s: NormSlots; style: ExplainStyl
       <div style={{ padding: '12px 14px 14px' }}>
         {style === 'a' && <FactSheet s={s} detail={detail} ctx={ctx} />}
         {style === 'b' && <Prose s={s} detail={detail} ctx={ctx} />}
-        {style === 'c' && <RuleForm s={s} detail={detail} ctx={ctx} color={color} />}
+        {style === 'c' && <GherkinBlock lines={gherkinNorm(n, s)} detail={detail} ctx={ctx} color={color} />}
         {detail === 'full' && s.authorNote && (
           <p style={{ margin: '12px 0 0', padding: '6px 10px', background: C.note, borderRadius: 4, color: C.muted, fontStyle: 'italic', fontSize: 12.5 }}>
             <b style={{ fontStyle: 'normal', color: C.text }}>Specifier's note:</b> {s.authorNote}
@@ -382,27 +389,31 @@ function Prose({ s, detail, ctx }: { s: NormSlots; detail: Detail; ctx: Ctx }) {
   );
 }
 
-// --- Style C: if / then / otherwise -------------------------------------------
+// --- Style C: Gherkin ---------------------------------------------------------
 
-function RuleForm({ s, detail, ctx, color }: { s: NormSlots; detail: Detail; ctx: Ctx; color: string }) {
-  const kw = (t: string) => <span title={LABEL_GLOSS[t]} style={{ font: '600 11.5px/1.7 ui-monospace, monospace', letterSpacing: '.05em', textTransform: 'uppercase', color, cursor: LABEL_GLOSS[t] ? 'help' : 'default' }}>{t}</span>;
-  const rows = ruleRows(s);
-  const foot = detail === 'full' ? ruleFoot(s) : [];
+function GherkinBlock({ lines, detail, ctx, color }: { lines: GLine[]; detail: Detail; ctx: Ctx; color: string }) {
+  const shown = lines.filter((l) => detail === 'full' || !l.full);
+  const kwStyle = (kw: string): React.CSSProperties => ({
+    color: kw === 'Given' || kw === 'When' || kw === 'Then' || kw === 'And' ? color : C.accent, fontWeight: 600,
+  });
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '4px 12px' }}>
-      {rows.map(([k, v], i) => (
-        <div key={i} style={{ display: 'contents' }}>
-          <div>{k ? kw(k) : null}</div>
-          <div>{Array.isArray(v[0]) ? <Bullets items={v as Rich[]} ctx={ctx} /> : <RichText r={v as Rich} ctx={ctx} />}</div>
-        </div>
-      ))}
-      {foot.length > 0 && (
-        <div style={{ gridColumn: '1 / -1', color: C.muted, fontSize: 12.5, borderTop: `1px dashed ${C.line}`, paddingTop: 6, marginTop: 4 }}>
-          <RichText r={foot.flatMap((f, i) => (i ? [' ', ...f] : f))} ctx={ctx} />
-        </div>
-      )}
-    </div>
+    <pre style={{ margin: 0, font: '12.5px/1.55 ui-monospace, Consolas, monospace', whiteSpace: 'pre-wrap', color: C.text }}>
+      {shown.map((l, i) => {
+        const pad = '  '.repeat(Math.max(0, l.indent - 1));
+        if (l.kind === 'blank') return <span key={i}>{'\n'}</span>;
+        if (l.kind === 'comment') return <span key={i} style={{ color: C.muted }}>{pad}# <RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'header') return <span key={i}>{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}:</span>{l.text.length ? ' ' : ''}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'step') return <span key={i}>{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}</span> <RichText r={quoted(l.text)} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'row') return <span key={i} style={{ color: C.muted }}>{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        return <span key={i} style={{ color: C.muted }}>{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+      })}
+    </pre>
   );
+}
+
+/** Steps show identifiers in quotes, as in the .feature file, while keeping them clickable. */
+function quoted(r: Rich): Rich {
+  return r.flatMap((f): Rich => (typeof f !== 'string' && ('code' in f || 'norm' in f) ? ['"', f, '"'] : [f]));
 }
 
 // ------------------------------------------------------------------ small bits

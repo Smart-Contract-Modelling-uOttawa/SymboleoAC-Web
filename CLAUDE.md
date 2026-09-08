@@ -148,6 +148,10 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
 - Identifiers are shown exactly as written (never humanized/split); the declared type may
   follow in parentheses. Event verbs come from the `EVENT_VERBS` lexicon in `verbalize.ts`.
 - Markdown export (`markdown.ts`) shares the slot logic with the view; keep them in sync.
+- `gherkin.ts` renders the explanation model as Gherkin (Feature/Background/Rule/Scenario/
+  Scenario Outline, Given/When/Then, quoted identifiers); it is style C in the tab, the
+  `.feature` export, and is checked against `@cucumber/gherkin` (bridge devDependency) by
+  `tools/explain-corpus`. Keep it to Gherkin keywords only.
 - `document.ts` builds the integrated documentation (one HTML file, no network); it reuses
   `buildClassDiagramDef`, `buildRulesDiagramDef` and `matrixTableHtml` from `web/src/model`,
   so changes to those views flow into the export automatically.

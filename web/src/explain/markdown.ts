@@ -3,11 +3,13 @@
  * chosen style and detail level. Norm names become in-document links.
  */
 import type { ContractModel } from '../model/api.js';
+import type { ExplainNorm } from './types.js';
 import type { ExplainStyle } from './ExplainView.js';
 import {
   capitalize, joinClauses, joinList, overview, rulePhrase, slots,
   type NormSlots, type OverviewSlots, type Rich,
 } from './verbalize.js';
+import { gherkinNorm, featureText } from './gherkin.js';
 
 export type Detail = 'brief' | 'full';
 
@@ -27,7 +29,7 @@ export function toMarkdown(model: ContractModel, style: ExplainStyle, detail: De
   const ov = overview(ex.contract, ex.norms, rules);
   const out: string[] = [];
   out.push(`# ${ex.contract.name} — plain-language explanation`, '');
-  out.push(`_Generated from the specification. Style: ${style === 'a' ? 'fact sheet' : style === 'b' ? 'plain-English clause' : 'if / then / otherwise'}; detail: ${detail}._`, '');
+  out.push(`_Generated from the specification. Style: ${style === 'a' ? 'fact sheet' : style === 'b' ? 'plain-English clause' : 'Gherkin'}; detail: ${detail}._`, '');
   out.push('## The contract as a whole', '', ...overviewMd(ov), '');
 
   const groups: [NormSlots['kind'], string][] = [['obligation', 'Obligations'], ['survivingObligation', 'Surviving obligations'], ['power', 'Powers']];
@@ -39,7 +41,7 @@ export function toMarkdown(model: ContractModel, style: ExplainStyle, detail: De
     for (const n of ns) {
       const s = slots(n, rules);
       out.push(`### ${s.name}`, '', `_${KIND[s.kind]} (line ${s.line})_`, '');
-      out.push(...(style === 'a' ? factSheetMd(s, detail) : style === 'b' ? proseMd(s, detail) : ruleMd(s, detail)));
+      out.push(...(style === 'a' ? factSheetMd(s, detail) : style === 'b' ? proseMd(s, detail) : gherkinMd(n, s, detail)));
       if (detail === 'full' && s.authorNote) out.push('', `> **Specifier's note:** ${s.authorNote}`);
       out.push('');
     }
@@ -139,44 +141,7 @@ function proseMd(s: NormSlots, detail: Detail): string[] {
   return tail.length ? [md(main), '', md(tail)] : [md(main)];
 }
 
-export function ruleRows(s: NormSlots): [string, Rich | Rich[]][] {
-  const rows: [string, Rich | Rich[]][] = [];
-  const start: [string, Rich] = [s.created ? 'If' : 'From', s.created ? [...s.created, ','] : ['the start of the contract,']];
-  rows.push(start);
-  if (s.isPower) {
-    if (s.binding) rows.push(['When', s.binding]);
-    rows.push(['Then', [...s.debtor, ' ', { b: 'may' }, ', against ', ...s.creditor, ',', ...(s.binding ? [] : [' at will,'])]]);
-    rows.push(['Cause', [...(s.must[0] ?? []), '.']]);
-  } else {
-    rows.push(['When', s.binding ?? ['immediately,']]);
-    rows.push(['Then', [...s.debtor, ' must, for ', ...s.creditor, ', ensure that']]);
-    rows.push(['', s.must]);
-    if (s.deadlines.length) rows.push(['By', s.deadlines]);
-    rows.push(['Otherwise', ['the obligation is violated.']]);
-  }
-  return rows;
-}
-
-export function ruleFoot(s: NormSlots): Rich[] {
-  const foot: Rich[] = [];
-  if (s.survives) foot.push(['Survives termination.']);
-  if (s.controller) foot.push(['Access administered by ', ...s.controller, '.']);
-  if (s.dependsOn.length) foot.push(['Refers to ', ...joinList(s.dependsOn.map((n) => [{ norm: n }]), 'and'), '.']);
-  if (s.feeds.length) foot.push(['Referred to by ', ...joinList(s.feeds.map((n) => [{ norm: n }]), 'and'), '.']);
-  if (s.acRules.length) foot.push([`Rule${s.acRules.length === 1 ? '' : 's'} `, ...joinList(s.acRules.map((r) => [{ code: r.name }]), 'and'), ' apply.']);
-  return foot;
-}
-
-function ruleMd(s: NormSlots, detail: Detail): string[] {
-  const o: string[] = [];
-  for (const [k, v] of ruleRows(s)) {
-    const isList = Array.isArray(v[0]);
-    const body = isList ? bullets(v as Rich[]) : md(v as Rich);
-    o.push(k ? `- **${k.toUpperCase()}** ${body}` : `  ${body.trim().startsWith('-') ? body.trim() : '- ' + body}`);
-  }
-  if (detail === 'full') {
-    const foot = ruleFoot(s);
-    if (foot.length) o.push('', `_${foot.map(md).join(' ')}_`);
-  }
-  return o;
+function gherkinMd(n: ExplainNorm, s: NormSlots, detail: Detail): string[] {
+  const lines = gherkinNorm(n, s).filter((l) => detail === 'full' || !l.full);
+  return ['```gherkin', featureText(lines).replace(/\n$/, ''), '```'];
 }

@@ -13,7 +13,8 @@ import { buildRulesDiagramDef } from '../model/Diagram.js';
 import { matrixTableHtml } from '../model/Matrix.js';
 import type { ExplainNorm } from './types.js';
 import { GLOSSARY, capitalize, joinList, overview, rulePhrase, slots, type NormSlots, type Rich } from './verbalize.js';
-import { proseRich, ruleRows, ruleFoot, type Detail } from './markdown.js';
+import { proseRich, type Detail } from './markdown.js';
+import { gherkinNorm, gherkinText, type GLine } from './gherkin.js';
 import { symboleoacKeywords, symboleoacControlKeywords, symboleoacBuiltins } from '../editor/symboleoac.monarch.js';
 import type { ExplainStyle } from './ExplainView.js';
 
@@ -74,22 +75,30 @@ function prose(s: NormSlots, ctx: Ctx): string {
   return `<div class="prose"><p>${richHtml(main, ctx)}</p>${tail.length ? `<p class="tail full-only">${richHtml(tail, ctx)}</p>` : ''}</div>`;
 }
 
-function ruleForm(s: NormSlots, ctx: Ctx): string {
-  const rows = ruleRows(s).map(([k, v]) => {
-    const body = Array.isArray(v[0]) ? bullets(v as Rich[], ctx) : richHtml(v as Rich, ctx);
-    return `<div class="kw">${esc(k)}</div><div>${body}</div>`;
+function gherkinHtml(lines: GLine[], ctx: Ctx): string {
+  const quoted = (r: Rich): Rich => r.flatMap((f): Rich => (typeof f !== 'string' && ('code' in f || 'norm' in f) ? ['"', f, '"'] : [f]));
+  const body = lines.map((l) => {
+    const pad = '  '.repeat(Math.max(0, l.indent - 1));
+    const full = l.full ? ' class="full-only"' : '';
+    switch (l.kind) {
+      case 'blank': return `<span${full}>\n</span>`;
+      case 'header': return `<span${full}>${pad}<span class="gk struct">${esc(l.kw ?? '')}:</span>${l.text.length ? ' ' + richHtml(l.text, ctx) : ''}\n</span>`;
+      case 'step': return `<span${full}>${pad}<span class="gk step">${esc(l.kw ?? '')}</span> ${richHtml(quoted(l.text), ctx)}\n</span>`;
+      case 'comment': return `<span class="cmt${l.full ? ' full-only' : ''}">${pad}# ${esc(gherkinText(l.text))}\n</span>`;
+      case 'row': return `<span class="row${l.full ? ' full-only' : ''}">${pad}${esc(gherkinText(l.text))}\n</span>`;
+      default: return `<span class="desc${l.full ? ' full-only' : ''}">${pad}${richHtml(l.text, ctx)}\n</span>`;
+    }
   }).join('');
-  const foot = ruleFoot(s);
-  return `<div class="rule">${rows}${foot.length ? `<div class="foot full-only">${foot.map((f) => richHtml(f, ctx)).join(' ')}</div>` : ''}</div>`;
+  return `<pre class="gherkin">${body}</pre>`;
 }
 
-function normBlock(s: NormSlots, ctx: Ctx): string {
+function normBlock(n: ExplainNorm, s: NormSlots, ctx: Ctx): string {
   return `<article class="norm-block ${s.kind}" id="norm-${esc(s.name)}">
 <header><span class="kind" title="${esc(GLOSSARY[s.kind])}">${KIND[s.kind]}</span><code class="name">${esc(s.name)}</code><a class="src" href="#L${s.line}" data-line="${s.line}">line ${s.line}</a></header>
 <div class="body">
 <div class="style style-a">${factSheet(s, ctx)}</div>
 <div class="style style-b">${prose(s, ctx)}</div>
-<div class="style style-c">${ruleForm(s, ctx)}</div>
+<div class="style style-c">${gherkinHtml(gherkinNorm(n, s), ctx)}</div>
 ${s.authorNote ? `<p class="note full-only"><b>Specifier's note:</b> ${esc(s.authorNote)}</p>` : ''}
 </div></article>`;
 }
@@ -231,7 +240,7 @@ ${ov.observations.length ? field('Observations', `<ul class="muted">${ov.observa
   const group = (kind: ExplainNorm['kind'], title: string, lede: string) => {
     const ns = ex.norms.filter((n) => n.kind === kind);
     if (!ns.length) return '';
-    return `<section id="${kind}s"><h2>${esc(title)}</h2>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}${ns.map((n) => normBlock(slots(n, rules), ctx)).join('\n')}</section>`;
+    return `<section id="${kind}s"><h2>${esc(title)}</h2>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}${ns.map((n) => normBlock(n, slots(n, rules), ctx)).join('\n')}</section>`;
   };
 
   const ruleList = rules.length ? `<ul class="rules">${rules.map((r) => `<li>${richHtml(rulePhrase(r), ctx)}</li>`).join('')}</ul>` : '';
@@ -262,7 +271,7 @@ ${CSS}
   <nav class="contents">${contents.map(([id, t]) => `<a href="#${id}">${esc(t)}</a>`).join('')}</nav>
   <div class="controls">
     <span class="seg" role="group" aria-label="Explanation style">
-      <button type="button" data-set-style="a" title="Labelled slots, one per element of the formal norm">Fact sheet</button><button type="button" data-set-style="b" title="One paragraph per norm">Plain-English clause</button><button type="button" data-set-style="c" title="A conditional rule mirroring trigger, condition, consequence and violation">If / then / otherwise</button>
+      <button type="button" data-set-style="a" title="Labelled slots, one per element of the formal norm">Fact sheet</button><button type="button" data-set-style="b" title="One paragraph per norm">Plain-English clause</button><button type="button" data-set-style="c" title="Each norm as a Gherkin Rule with one scenario per outcome">Gherkin</button>
     </span>
     <span class="seg" role="group" aria-label="Detail level">
       <button type="button" data-set-detail="brief" title="Only who, when and what">Brief</button><button type="button" data-set-detail="full" title="All slots, cross-references and notes">Full</button>
@@ -344,6 +353,9 @@ dl.sheet dt { color: var(--muted); font-weight: 600; font-size: 12.5px; cursor: 
 .rule .kw { font: 600 11.5px/1.7 ui-monospace, Consolas, monospace; letter-spacing: .05em; text-transform: uppercase; }
 .obligation .rule .kw { color: var(--obl); } .survivingObligation .rule .kw { color: var(--surv); } .power .rule .kw { color: var(--pow); }
 .rule .foot { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 4px; }
+pre.gherkin { margin: 0; font: 13px/1.55 ui-monospace, Consolas, monospace; white-space: pre-wrap; } pre.gherkin .gk { font-weight: 600; } pre.gherkin .gk.struct { color: var(--accent); }
+.obligation pre.gherkin .gk.step { color: var(--obl); } .survivingObligation pre.gherkin .gk.step { color: var(--surv); } .power pre.gherkin .gk.step { color: var(--pow); }
+pre.gherkin .desc, pre.gherkin .cmt, pre.gherkin .row { color: var(--muted); }
 .note { margin: 12px 0 0; padding: 7px 11px; background: var(--note); border-radius: 4px; color: var(--muted); font-style: italic; font-size: 13.5px; } .note b { font-style: normal; color: var(--ink); }
 html[data-style="a"] .style:not(.style-a), html[data-style="b"] .style:not(.style-b), html[data-style="c"] .style:not(.style-c) { display: none; }
 html[data-detail="brief"] .full-only { display: none !important; }

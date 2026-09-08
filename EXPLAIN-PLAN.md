@@ -182,6 +182,11 @@ specification is rendered single-spaced with the editor's Monarch token classes 
 theme colours (`highlightSpec`), and every identifier occurrence is a link to its
 declaration line.
 
+Style C was later replaced by a **Gherkin** rendering (`web/src/explain/gherkin.ts`): one
+`Rule` per norm with fulfilled/violated/exercised scenarios, Scenario Outlines for same-kind
+disjunctive triggers, quoted identifiers; exported as `.feature` and verified against the
+reference parser by `tools/explain-corpus` (13 contracts, 447 scenarios, all parse).
+
 Earlier: **E1–E4 are implemented.** E3 adds the lifecycle walkthrough
 ("Normal course", obligations in dependency order), the Brief/Full toggle and Markdown
 copy/save. E4 ran the idiom audit over all 40 local specifications (7 error-free): every
