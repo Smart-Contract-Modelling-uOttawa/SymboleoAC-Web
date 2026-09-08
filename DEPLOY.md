@@ -127,6 +127,31 @@ docker compose -f infra/docker-compose.yml pull && \
 Only stateful thing is Caddy's cert volume (`caddy_data`); everything else is
 rebuildable from the repo. Both services are `restart: unless-stopped`.
 
+### 6. When to redeploy what
+
+The two pieces deploy independently, so after a push to `main` ask which side
+a commit touched:
+
+| Commit changes… | What to do |
+|---|---|
+| `web/**` (front end, samples, `web/public/docs`, README screenshots) | Nothing: the `deploy-web` workflow rebuilds GitHub Pages on every push to `main` that touches `web/**`. |
+| `language-server/**`, `codegen-cli/**`, `bridge/src/**`, `bridge/Dockerfile`, `bridge/package*.json`, `infra/**`, `upstream/**` | **Redeploy the VPS**: `git pull` on the box, then `docker compose -f infra/docker-compose.yml up -d --build` (the image compiles both jars and the bridge from source; a few minutes). |
+| `bridge/test-*.mjs`, `*.md`, `docs/**` (except `web/public/docs`) | Nothing to deploy. |
+
+Rule of thumb: anything the browser downloads comes from Pages; anything the
+browser talks to over `wss://`/`https://` comes from the VPS. Both may need
+updating in one commit (e.g. a new LSP feature plus its editor wiring).
+
+After a VPS redeploy, check from your machine:
+
+```bash
+curl https://<APP_DOMAIN>/healthz                                  # {"ok":true,...}
+node bridge/test-explain.mjs        https://<APP_DOMAIN>           # /model incl. explanation block
+node bridge/test-definition.mjs     wss://<APP_DOMAIN>/lsp         # go-to-definition
+node bridge/test-rename-hover.mjs   wss://<APP_DOMAIN>/lsp         # hover + rename
+node bridge/test-semantic-tokens.mjs wss://<APP_DOMAIN>/lsp        # semantic tokens
+```
+
 ---
 
 ## If the backend domain changes
