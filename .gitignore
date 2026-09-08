@@ -38,3 +38,6 @@ Thumbs.db
 #     own workspace settings are not) ──────────────────────────────────────
 .metadata/
 **/.settings/
+
+# Manuscript drafts are kept out of the repository
+paper/

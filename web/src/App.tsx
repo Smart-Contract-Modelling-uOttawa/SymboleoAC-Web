@@ -13,8 +13,9 @@ import { getModel, type ContractModel } from './model/api.js';
 import { Diagram } from './model/Diagram.js';
 import { Matrix } from './model/Matrix.js';
 import { ClassDiagram } from './model/ClassDiagram.js';
+import { ExplainView } from './explain/ExplainView.js';
 
-type Tab = 'generated' | 'diagnostics' | 'diagram' | 'matrix' | 'domain';
+type Tab = 'generated' | 'diagnostics' | 'diagram' | 'matrix' | 'domain' | 'explain';
 type Status =
   | { kind: 'idle' }
   | { kind: 'running' }
@@ -64,7 +65,7 @@ export function App() {
   // those views is showing, debounced — each call spawns a JVM, so we avoid
   // per-keystroke churn.
   useEffect(() => {
-    const needed = outlineOn || tab === 'diagram' || tab === 'matrix' || tab === 'domain';
+    const needed = outlineOn || tab === 'diagram' || tab === 'matrix' || tab === 'domain' || tab === 'explain';
     if (!needed) return;
     const t = setTimeout(() => {
       getModel(sourceRef.current).then((m) => { if (m) setModel(m); });
@@ -259,6 +260,7 @@ export function App() {
                 ['domain', 'Domain'],
                 ['diagram', 'Rules'],
                 ['matrix', 'Policy'],
+                ['explain', 'Explain'],
               ] as const).map(([t, label]) => (
                 <button
                   key={t}
@@ -290,6 +292,7 @@ export function App() {
               {tab === 'domain' && <ClassDiagram model={model} />}
               {tab === 'diagram' && <Diagram model={model} />}
               {tab === 'matrix' && <Matrix model={model} />}
+              {tab === 'explain' && <ExplainView model={model} editor={editorInst} getSource={() => sourceRef.current} />}
             </div>
           </div>
         </Panel>

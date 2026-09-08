@@ -22,9 +22,10 @@ const styleLine = (id: string, cat: string) => {
   return p ? `style ${id} fill:${p.fill},stroke:${p.stroke},color:#1e1e1e` : null;
 };
 
-function buildDefinition(model: ContractModel): string {
+/** Mermaid classDiagram definition of the domain model (shared with the documentation export). */
+export function buildClassDiagramDef(model: ContractModel, direction: 'LR' | 'TB' = 'LR'): string {
   const dm = model.domainModel;
-  const lines: string[] = ['classDiagram', 'direction LR'];
+  const lines: string[] = ['classDiagram', `direction ${direction}`];
   const styles: string[] = [];
   const declaredBase = new Set<string>();
 
@@ -82,7 +83,7 @@ function buildDefinition(model: ContractModel): string {
 
 export function ClassDiagram({ model }: { model: ContractModel | null }) {
   const hasTypes = !!model && (model.domainModel.types.length + model.domainModel.enums.length) > 0;
-  const def = useMemo(() => (model && hasTypes ? buildDefinition(model) : null), [model, hasTypes]);
+  const def = useMemo(() => (model && hasTypes ? buildClassDiagramDef(model) : null), [model, hasTypes]);
 
   if (!model) return <Msg>The domain class diagram appears after the model loads.</Msg>;
   if (!hasTypes) return <Msg>No domain types to diagram yet.</Msg>;

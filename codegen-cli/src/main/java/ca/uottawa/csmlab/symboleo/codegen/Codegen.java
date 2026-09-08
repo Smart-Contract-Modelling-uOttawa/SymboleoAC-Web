@@ -154,23 +154,38 @@ public final class Codegen {
             resource.load(in, Collections.emptyMap());
         }
 
-        if (modelMode) {
-            // Best-effort structured summary, even if the contract has errors.
-            System.setOut(realOut);
-            String src = new String(sourceBytes, StandardCharsets.UTF_8);
-            org.json.JSONObject model = new org.json.JSONObject();
-            for (EObject root : resource.getContents()) {
-                if (root instanceof Model) { model = ModelJson.build((Model) root, src); break; }
-            }
-            realOut.print(model.toString());
-            realOut.flush();
-            return 0;
-        }
-
         IResourceValidator resourceValidator = injector.getInstance(IResourceValidator.class);
         List<Issue> issues = resourceValidator.validate(
                 resource, CheckMode.ALL, CancelIndicator.NullImpl);
         boolean hasErrors = issues.stream().anyMatch(i -> i.getSeverity() == Severity.ERROR);
+
+        if (modelMode) {
+            // Best-effort structured summary, even if the contract has errors.
+            // The "explain" block is also best-effort, but the UI only shows it
+            // when diagnostics.errors == 0 (warnings are tolerated).
+            String src = new String(sourceBytes, StandardCharsets.UTF_8);
+            org.json.JSONObject model = new org.json.JSONObject();
+            for (EObject root : resource.getContents()) {
+                if (root instanceof Model) {
+                    model = ModelJson.build((Model) root, src);
+                    org.json.JSONObject explain;
+                    try {
+                        explain = ExplainJson.build((Model) root, src);
+                    } catch (RuntimeException ex) {
+                        // Never let the explanation model break the outline/diagrams.
+                        ex.printStackTrace(System.err);
+                        explain = new org.json.JSONObject().put("error", String.valueOf(ex));
+                    }
+                    model.put("explain", explain);
+                    break;
+                }
+            }
+            model.put("diagnostics", diagnosticsJson(issues));
+            System.setOut(realOut);
+            realOut.print(model.toString());
+            realOut.flush();
+            return 0;
+        }
 
         Map<String, CharSequence> files = Collections.emptyMap();
         if (!hasErrors && !resource.getContents().isEmpty()) {
@@ -190,6 +205,22 @@ public final class Codegen {
         System.setOut(realOut);
         writeOutput(realOut, files, issues, jsIssues);
         return (hasErrors || !jsIssues.isEmpty()) ? 1 : 0;
+    }
+
+    /** {errors, warnings, issues:[{severity,line,column,message}]} for the --model output. */
+    private static JSONObject diagnosticsJson(List<Issue> issues) {
+        JSONArray arr = new JSONArray();
+        int errors = 0, warnings = 0;
+        for (Issue i : issues) {
+            if (i.getSeverity() == Severity.ERROR) errors++;
+            else if (i.getSeverity() == Severity.WARNING) warnings++;
+            arr.put(new JSONObject()
+                    .put("severity", String.valueOf(i.getSeverity()).toLowerCase())
+                    .put("line", i.getLineNumber() == null ? 0 : i.getLineNumber())
+                    .put("column", i.getColumn() == null ? 0 : i.getColumn())
+                    .put("message", i.getMessage() == null ? "" : i.getMessage()));
+        }
+        return new JSONObject().put("errors", errors).put("warnings", warnings).put("issues", arr);
     }
 
     /**

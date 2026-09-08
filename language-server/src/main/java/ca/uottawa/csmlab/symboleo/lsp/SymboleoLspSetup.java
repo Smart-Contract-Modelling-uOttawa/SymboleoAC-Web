@@ -9,6 +9,10 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import org.eclipse.xtext.formatting2.IFormatter2;
+import org.eclipse.xtext.ide.server.hover.HoverService;
+import org.eclipse.xtext.ide.server.hover.IHoverService;
+import org.eclipse.xtext.ide.server.rename.IRenameService2;
+import org.eclipse.xtext.ide.server.symbol.DocumentSymbolService;
 import org.eclipse.xtext.util.Modules2;
 import org.eclipse.xtext.validation.EValidatorRegistrar;
 
@@ -35,10 +39,20 @@ public class SymboleoLspSetup extends SymboleoIdeSetup {
         // third module that binds our document formatter. Modules2.mixin lets a
         // later module override the default IFormatter2 binding.
         Module formatterModule = binder -> binder.bind(IFormatter2.class).to(SymboleoFormatter.class);
+        // Name-based go-to-definition / references (the grammar has no cross-refs for
+        // variable/norm names, so the default service finds nothing at a reference).
+        // Hover and rename follow the same name-based resolution.
+        Module symbolModule = binder -> {
+            binder.bind(DocumentSymbolService.class).to(SymboleoSymbolService.class);
+            binder.bind(HoverService.class).to(SymboleoHoverService.class);
+            binder.bind(IHoverService.class).to(SymboleoHoverService.class);
+            binder.bind(IRenameService2.class).to(SymboleoRenameService.class);
+        };
         return Guice.createInjector(Modules2.mixin(
                 new SymboleoRuntimeModule(),
                 new SymboleoIdeModule(),
-                formatterModule));
+                formatterModule,
+                symbolModule));
     }
 
     @Override
