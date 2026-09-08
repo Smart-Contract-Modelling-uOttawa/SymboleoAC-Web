@@ -9,8 +9,8 @@ export const SYMBOLEOAC_THEME_ID = 'symboleoac-dark';
  * operators as soon as the page loads; identifiers stay neutral. Once the
  * language server has parsed the contract, its semantic tokens (see
  * `SymboleoHighlightingCalculator` in language-server) colour every identifier
- * by what it is. Semantic token types reach the theme through VS Code's default
- * TextMate scopes, so each rule below names that scope.
+ * by what it is; the standalone theme service looks the token type name up in
+ * the rules below (with modifiers appended, e.g. "event.declaration").
  */
 export const SEMANTIC_COLOURS = {
   type: '4EC9B0',        // domain types, enumerations            (class, enum)
@@ -38,17 +38,18 @@ export const symboleoacTheme: monacoNs.editor.IStandaloneThemeData = {
     { token: 'comment', foreground: '6A9955' },
     { token: 'operator', foreground: 'D4D4D4' },
     { token: 'delimiter', foreground: 'D4D4D4' },
-    // Semantic tokens (LSP type -> default scope -> colour)
-    { token: 'entity.name.type.class', foreground: SEMANTIC_COLOURS.type },          // class
-    { token: 'entity.name.type.enum', foreground: SEMANTIC_COLOURS.type },           // enum
-    { token: 'variable.other.enummember', foreground: SEMANTIC_COLOURS.enumMember }, // enumMember
-    { token: 'variable.other.property', foreground: SEMANTIC_COLOURS.attribute },    // property
-    { token: 'variable.parameter', foreground: SEMANTIC_COLOURS.parameter, fontStyle: 'italic' }, // parameter
-    { token: 'variable.other.readwrite', foreground: SEMANTIC_COLOURS.instance },    // variable
-    { token: 'entity.name.variable', foreground: SEMANTIC_COLOURS.instance },        // variable (alt. probe)
-    { token: 'variable.other.event', foreground: SEMANTIC_COLOURS.event },           // event
-    { token: 'entity.name.function', foreground: SEMANTIC_COLOURS.norm },            // function
-    { token: 'entity.name.function.preprocessor', foreground: SEMANTIC_COLOURS.rule }, // macro
+    // Semantic tokens. Monaco's standalone theme service matches a semantic token by
+    // its type name plus modifiers ("event", "event.declaration", ...), so the rules
+    // are named after the LSP token types, not after TextMate scopes.
+    { token: 'class', foreground: SEMANTIC_COLOURS.type },
+    { token: 'enum', foreground: SEMANTIC_COLOURS.type },
+    { token: 'enumMember', foreground: SEMANTIC_COLOURS.enumMember },
+    { token: 'property', foreground: SEMANTIC_COLOURS.attribute },
+    { token: 'parameter', foreground: SEMANTIC_COLOURS.parameter, fontStyle: 'italic' },
+    { token: 'variable', foreground: SEMANTIC_COLOURS.instance },
+    { token: 'event', foreground: SEMANTIC_COLOURS.event },
+    { token: 'function', foreground: SEMANTIC_COLOURS.norm },
+    { token: 'macro', foreground: SEMANTIC_COLOURS.rule },
   ],
 };
 
