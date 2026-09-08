@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import * as monaco from '@codingame/monaco-vscode-editor-api';
+import { applySymboleoacTheme } from '../editor/theme.js';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { GenerateResult } from './api.js';
 import { ensureGeneratedFileLanguages } from './jsHighlight.js';
@@ -123,6 +124,8 @@ export function GeneratedFilesView({ result }: Props) {
     if (!editorContainerRef.current) return;
     if (editorRef.current) return;
     ensureGeneratedFileLanguages(); // register js/json Monarch grammars once
+    // No `theme` option here: Monaco's theme is global, and passing 'vs-dark'
+    // would replace the SymboleoAC theme of the main editor (semantic colours).
     editorRef.current = monaco.editor.create(editorContainerRef.current, {
       value: '',
       language: 'plaintext',
@@ -130,9 +133,9 @@ export function GeneratedFilesView({ result }: Props) {
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: 12,
-      theme: 'vs-dark',
       scrollBeyondLastLine: false,
     });
+    applySymboleoacTheme(monaco); // inherits vs-dark for JS/JSON tokens, keeps SymboleoAC colours
     return () => {
       editorRef.current?.dispose();
       editorRef.current = null;
