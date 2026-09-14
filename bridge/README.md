@@ -45,7 +45,7 @@ npm run build ; node build/index.js     # listens on :3000 (override with PORT)
 | `ALLOW_ORIGIN` | `*` | CORS allow-origin for `/generate` (lock to Pages origin in prod) |
 | `BODY_LIMIT` | `2mb` | max `/generate` body |
 | `GEN_TIMEOUT_MS` | `30000` | codegen subprocess wall-clock cap |
-| `IDLE_TIMEOUT_MS` | `600000` | reap LSP sessions idle this long |
+| `IDLE_TIMEOUT_MS` | `600000` | reap LSP sessions idle this long. A visible browser tab sends a `symboleoac/keepAlive` notification every 4 min, which counts as activity and is not forwarded to the JVM; hidden tabs are reaped and reconnect when shown again |
 | `RATE_WINDOW_MS` | `60000` | `/generate` per-IP window |
 | `RATE_MAX` | `20` | max `/generate` requests per window per IP |
 | `MAX_CONCURRENT_GEN` | `4` | cap simultaneous codegen JVMs |
