@@ -124,13 +124,6 @@ export function App() {
       }
       return;
     }
-    if (choice.startsWith('sample:')) {
-      const s = SAMPLES.find((x) => x.name === choice.slice('sample:'.length));
-      if (!s) return;
-      setBaseline({ name: s.name, source: s.text });
-      setCompareOn(true);
-      setStatus({ kind: 'ok', message: `comparing with ${s.name}` });
-    }
   }, [currentName]);
 
   const handleTextChanged = useCallback((txt: string) => {
@@ -287,9 +280,6 @@ export function App() {
           <option value="">Compare…</option>
           <option value="snapshot">Snapshot the current text as baseline</option>
           <option value="file">With a file…</option>
-          <optgroup label="With an example">
-            {SAMPLES.map((s) => <option key={s.name} value={`sample:${s.name}`}>{s.name}</option>)}
-          </optgroup>
           {baseline && <option value="clear">Stop comparing</option>}
         </select>
         {baseline && (

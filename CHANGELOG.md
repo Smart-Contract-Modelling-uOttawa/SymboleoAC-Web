@@ -10,7 +10,7 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
 ### Added
 
 - **Compare** ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)):
-  a baseline (snapshot of the current text, a file, or a built-in example) can be
+  a baseline (a snapshot of the current text, or a file) can be
   compared with the contract being edited.
   - Side-by-side **text diff** in the editor slot (Monaco diff editor; the right-hand
     side is the live editor model, so editing continues with diagnostics and
