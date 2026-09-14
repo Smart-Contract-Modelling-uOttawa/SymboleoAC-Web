@@ -69,6 +69,20 @@ The Explain tab describes the contract in plain language, for people who are not
 
 ---
 
+## Compare two versions
+
+[![Comparing two versions: side-by-side text diff on the left, changes in meaning in the Explain tab on the right](docs/screenshot-compare.png)](docs/screenshot-compare.png)
+
+*A snapshot of `MeatSale` compared with an edited version. Left, the text diff (the right-hand side is the live editor, so diagnostics and completion keep working). Right, the Explain tab's **Changes** block: for each changed norm, the fact-sheet slots that differ (removed clauses struck through, added ones marked), the Gherkin scenarios affected, and the declarations, domain types and access rules that changed. The `Explain (6 changes)` tab label, the Outline and the editor gutter point to what to inspect.*
+
+Pick a baseline in the **Compare…** menu: a snapshot of the current text (take one before editing), or a file. Then:
+
+- **Text diff**: the **Diff** button shows baseline and current side by side; the editor gutter marks added, modified and deleted lines.
+- **Changes in meaning**: the Explain tab lists norms added, removed, renamed and changed, slot by slot, in the same words as the explanations; declarations, parameters, domain types and access rules that differ; and overview slots that differ. Renames are recognised (renaming a role does not make every norm that mentions it look rewritten), and formatting or comment edits count for nothing, since models are compared rather than text.
+- **In place**: badges on the norm blocks and inline marks in the fact sheet; in the **Gherkin** style, a changed norm shows its baseline steps struck through with a `−` gutter and new steps with `+`, and the Changes block names the scenarios that changed.
+- **Diagrams**: a **Changes** toggle in the Domain, Rules and Policy views dims what is unchanged, outlines what is new in white, ghosts what was removed in dashed grey, and badges what changed, without touching the views' own colours.
+- **Exports**: **Copy change note** puts the changes on the clipboard as Markdown, and the documentation export gains a "Changes since <baseline>" section, badges and marked Gherkin steps while a baseline is set.
+
 ## ✨ Top features
 
 | # | Feature | What it means for you |
@@ -81,17 +95,18 @@ The Explain tab describes the contract in plain language, for people who are not
 | 6 | **Go to Definition, Find References, Hover, Rename** | <kbd>F12</kbd> / <kbd>Ctrl</kbd>+click jumps from any reference — a role, event, asset, obligation, power, rule, type, parameter, or enumeration value — to its declaration; <kbd>Shift</kbd>+<kbd>F12</kbd> lists every use; hovering shows what an identifier is, where it is declared, and (for norms) the specifier's comment; <kbd>F2</kbd> renames it everywhere, refusing keywords and clashes. Works even though the SymboleoAC grammar references most names as plain identifiers. |
 | 7 | **Plain‑language explanations (Explain tab)** | Every obligation, surviving obligation and power — and the contract as a whole — explained for non‑specialists in three switchable styles (fact sheet, plain‑English clause, **Gherkin** feature file that parses with the reference parser), generated deterministically from the specification with clickable identifiers and cross‑norm links. See *Understand the contract* above. |
 | 8 | **Integrated documentation export** | One self‑contained, printable HTML file with the overview, both diagrams, the policy matrix, the explanations in all styles, and the syntax‑coloured, cross‑linked specification. |
-| 9 | **Compare two versions** | Pick a baseline (a snapshot of the current text, or a file) and see both the **text diff** side by side and the **changes in meaning** in the Explain tab: norms added, removed, renamed or changed, slot by slot; declarations, domain types and access rules that differ; outline markers and gutter bars point to what to inspect, and a **Changes** toggle on the Domain, Rules and Policy views dims what is unchanged, outlines what is new, ghosts what was removed and badges what changed. Renames are recognised, and formatting or comment edits do not count as changes. **Copy change note** exports the list as Markdown. |
-| 10 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
-| 11 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
-| 12 | **Built‑in examples & tutorial** | Start instantly from real contracts via the **Example** dropdown — `MeatSale`, `VaccineProcurement`, and the Incoterms 2020 `FOB` trade term — or learn the language with `Tutorial`, a deliberately broken contract whose 22 commented problems (naming, typing, declarations, norms, access control, syntax) you fix one by one until it compiles. |
-| 13 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
-| 14 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
-| 15 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
-| 16 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
-| 17 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
-| 18 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
-| 19 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
+| 9 | **Compare two versions** | Pick a baseline (a snapshot of the current text, or a file) and see both the **text diff** side by side and the **changes in meaning** in the Explain tab: norms added, removed, renamed or changed, slot by slot; declarations, domain types and access rules that differ; outline markers and gutter bars point to what to inspect, and a **Changes** toggle on the Domain, Rules and Policy views dims what is unchanged, outlines what is new, ghosts what was removed and badges what changed. Renames are recognised, and formatting or comment edits do not count as changes. **Copy change note** exports the list as Markdown, and the documentation export carries a change note. See *Compare two versions* above. |
+| 10 | **Themes and a live connection** | Four editor themes (dark, vivid, light, plain), remembered across sessions and mirrored in the documentation export; a toolbar indicator shows the language-server connection, which is kept alive while the tab is visible and reconnected automatically after an idle period, a network hiccup or a backend redeploy. |
+| 11 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
+| 12 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
+| 13 | **Built‑in examples & tutorial** | Start instantly from real contracts via the **Example** dropdown — `MeatSale`, `VaccineProcurement`, and the Incoterms 2020 `FOB` trade term — or learn the language with `Tutorial`, a deliberately broken contract whose 22 commented problems (naming, typing, declarations, norms, access control, syntax) you fix one by one until it compiles. |
+| 14 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
+| 15 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
+| 16 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
+| 17 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
+| 18 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
+| 19 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
+| 20 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
 
 ---
 
@@ -203,8 +218,8 @@ cd codegen-cli     ; mvn -B clean package ; cd ..
 
 # 2) Run the bridge (serves /lsp and /generate on :3030)
 cd bridge ; npm ci ; npm run build
-$env:LS_JAR      = (Resolve-Path ../language-server/target/symboleoac-language-server-1.0.0-all.jar).Path
-$env:CODEGEN_JAR = (Resolve-Path ../codegen-cli/target/symboleoac-codegen-cli-1.0.0-all.jar).Path
+$env:LS_JAR      = (Resolve-Path ../language-server/target/symboleoac-language-server-1.1.0-all.jar).Path
+$env:CODEGEN_JAR = (Resolve-Path ../codegen-cli/target/symboleoac-codegen-cli-1.1.0-all.jar).Path
 $env:PORT = "3030" ; node build/index.js
 
 # 3) Run the web app (in another terminal); web/.env.local already points at :3030

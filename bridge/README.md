@@ -17,7 +17,7 @@ Node service that fronts the JVM language tooling for the browser IDE:
 ## Codegen invocation (the CLI the bridge calls)
 
 ```
-java -jar codegen-cli/target/symboleoac-codegen-cli-1.0.0-all.jar [--in <file>] [--name <virtual>]
+java -jar codegen-cli/target/symboleoac-codegen-cli-1.1.0-all.jar [--in <file>] [--name <virtual>]
 ```
 
 Source from `--in` or stdin; emits the JSON shape above. It invokes
@@ -28,8 +28,8 @@ UTF-8 BOM (the upstream samples ship one) before parsing.
 ## Run locally (without Docker)
 
 ```powershell
-$env:LS_JAR      = (Resolve-Path ../language-server/target/symboleoac-language-server-1.0.0-all.jar).Path
-$env:CODEGEN_JAR = (Resolve-Path ../codegen-cli/target/symboleoac-codegen-cli-1.0.0-all.jar).Path
+$env:LS_JAR      = (Resolve-Path ../language-server/target/symboleoac-language-server-1.1.0-all.jar).Path
+$env:CODEGEN_JAR = (Resolve-Path ../codegen-cli/target/symboleoac-codegen-cli-1.1.0-all.jar).Path
 npm run build ; node build/index.js     # listens on :3000 (override with PORT)
 ```
 

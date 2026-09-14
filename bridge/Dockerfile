@@ -33,8 +33,8 @@ WORKDIR /app
 COPY --from=bridge-build /app/node_modules ./node_modules
 COPY --from=bridge-build /app/build ./build
 COPY --from=bridge-build /app/package.json ./package.json
-COPY --from=jars /build/language-server/target/symboleoac-language-server-1.0.0-all.jar /app/jars/symboleoac-language-server.jar
-COPY --from=jars /build/codegen-cli/target/symboleoac-codegen-cli-1.0.0-all.jar          /app/jars/symboleoac-codegen.jar
+COPY --from=jars /build/language-server/target/symboleoac-language-server-1.1.0-all.jar /app/jars/symboleoac-language-server.jar
+COPY --from=jars /build/codegen-cli/target/symboleoac-codegen-cli-1.1.0-all.jar          /app/jars/symboleoac-codegen.jar
 ENV LS_JAR=/app/jars/symboleoac-language-server.jar
 ENV CODEGEN_JAR=/app/jars/symboleoac-codegen.jar
 ENV PORT=3000

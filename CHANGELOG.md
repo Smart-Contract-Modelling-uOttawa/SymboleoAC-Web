@@ -7,6 +7,15 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
 
 ## [Unreleased]
 
+### Planned
+
+- Executable tests generated from the Gherkin features ([#14](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/14)).
+- Finer rename detection in Compare when a norm is renamed and edited in the same round ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
+
+## [1.1.0] — 2026-09-14
+
+Compare two versions of a contract, keep the language-server session alive, choose a theme, and the SymboleoAC brand.
+
 ### Added
 
 - **Compare** ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)):
@@ -57,10 +66,6 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
   editor now keeps a visible tab's session alive with a heartbeat the bridge swallows
   (`symboleoac/keepAlive`) and reconnects automatically (with backoff, and when a hidden
   tab becomes visible again), re-opening the document on the new session.
-
-### Planned
-
-- Executable tests generated from the Gherkin features ([#14](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/14)).
 
 ## [1.0.0] — 2026-09-14
 
@@ -145,5 +150,6 @@ and a documentation export. Live at
   at commit `dec00792` with the local modifications listed in
   `upstream/UPSTREAM_PROVENANCE.md`.
 
-[Unreleased]: https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/releases/tag/v1.0.0

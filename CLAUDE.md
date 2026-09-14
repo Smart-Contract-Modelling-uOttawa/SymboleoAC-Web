@@ -80,15 +80,15 @@ SymboleoAC-Web/
 ## Build commands
 
 ```powershell
-# CLI (validator) fat jar  → upstream/SymboleoAC-IDE/cli/target/symboleo-cli-1.0.0-all.jar
+# CLI (validator) fat jar  → upstream/SymboleoAC-IDE/cli/target/symboleo-cli-1.1.0-all.jar
 $env:MAVEN_OPTS = "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 cd upstream\SymboleoAC-IDE\cli ; mvn -B clean package
 
-# LSP server fat jar  → language-server/target/symboleoac-language-server-1.0.0-all.jar
+# LSP server fat jar  → language-server/target/symboleoac-language-server-1.1.0-all.jar
 cd language-server ; mvn -B clean package
 
 # Smoke-test LSP handshake over stdio
-cd language-server ; node test-handshake.mjs target/symboleoac-language-server-1.0.0-all.jar
+cd language-server ; node test-handshake.mjs target/symboleoac-language-server-1.1.0-all.jar
 ```
 
 ## Deploy

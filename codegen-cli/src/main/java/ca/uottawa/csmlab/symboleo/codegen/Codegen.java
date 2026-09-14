@@ -41,7 +41,7 @@ import java.util.TreeMap;
  * Headless JavaScript code generator for SymboleoAC.
  *
  * Usage:
- *   java -jar symboleoac-codegen-cli-1.0.0-all.jar [--in &lt;file&gt;] [--name &lt;virtual-name&gt;]
+ *   java -jar symboleoac-codegen-cli-1.1.0-all.jar [--in &lt;file&gt;] [--name &lt;virtual-name&gt;]
  *
  * Source is read from --in &lt;path&gt; or stdin. --name sets the virtual filename
  * (default "input.symboleo") used by Xtext for URI / file extension routing.

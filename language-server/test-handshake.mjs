@@ -8,7 +8,7 @@ import { join } from 'node:path';
 const rootDir = mkdtempSync(join(tmpdir(), 'symboleo-lsp-test-'));
 const rootUri = pathToFileURL(rootDir).href;
 
-const JAR = process.argv[2] ?? 'target/symboleoac-language-server-1.0.0-all.jar';
+const JAR = process.argv[2] ?? 'target/symboleoac-language-server-1.1.0-all.jar';
 const proc = spawn('java', ['-jar', JAR], { stdio: ['pipe', 'pipe', 'pipe'] });
 
 let buf = Buffer.alloc(0);

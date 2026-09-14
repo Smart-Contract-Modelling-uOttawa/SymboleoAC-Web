@@ -17,7 +17,7 @@ cd "$(dirname "$0")/../.."
 HERE=tools/explain-corpus
 OUT=$HERE/out; CORPUS=$OUT/corpus; SPECS=$HERE/specs
 mkdir -p "$CORPUS" "$SPECS"; rm -f "$CORPUS"/*.json
-JAR=codegen-cli/target/symboleoac-codegen-cli-1.0.0-all.jar
+JAR=codegen-cli/target/symboleoac-codegen-cli-1.1.0-all.jar
 [ -f "$JAR" ] || { echo "missing $JAR — build it with: cd codegen-cli && mvn -B clean package"; exit 1; }
 
 INCOTERMS_RAW=https://raw.githubusercontent.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Incoterms/main/specs

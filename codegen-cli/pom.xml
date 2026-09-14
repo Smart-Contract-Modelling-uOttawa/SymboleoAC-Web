@@ -6,7 +6,7 @@
 
     <groupId>ca.uottawa.csmlab.symboleo</groupId>
     <artifactId>symboleoac-codegen-cli</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>SymboleoAC Codegen CLI (JS)</name>
