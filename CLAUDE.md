@@ -174,6 +174,13 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
   model (shared, so the language client keeps working); the main `EditorPane` stays mounted
   (display: none) while the diff shows. No `theme` option, as for every other editor.
 - `editor/gutter.ts` decorates the main editor with `linesDecorationsClassName` bars.
+- `model/changes.tsx` + optional `changes` argument of `buildClassDiagramDef` / `buildRulesDiagramDef`
+  and the `Matrix` view: behind a per-view "Changes" toggle (localStorage), unchanged elements are
+  dimmed (grey classDef/style, never opacity: text must dim too), added ones get a white 3px
+  stroke, removed ones come from the baseline model as dashed ghosts, labels carry +/~/−/old → new
+  badges. Do not add hues: category, Grant/Revoke and solid/dotted are already taken. Mermaid
+  class labels use `class Id["label"]` with members on `Id : member` lines (a label and a body
+  cannot share one statement). The documentation export calls the builders without `changes`.
 - Dev-only hook for browser checks: `window.__symboleoac.setSource(text)` / `getSource()`
   (guarded by `import.meta.env.DEV`; the Monaco textarea is not reachable by synthetic paste).
 

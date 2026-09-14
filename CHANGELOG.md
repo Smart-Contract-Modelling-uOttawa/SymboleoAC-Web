@@ -27,10 +27,16 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
     **Copy change note** exports the changes as Markdown.
   - Outline markers (A / M / R, removed entries struck through) and editor gutter
     bars (green added, blue modified, red deleted lines) while a baseline is set.
+  - A **Changes** toggle (off by default) in the Domain, Rules and Policy views:
+    unchanged elements are dimmed to greys, added ones get a thick white outline,
+    removed ones are drawn as dashed grey ghosts from the baseline, and labels carry
+    a badge (+, ~, −, old → new); a changed permission reads old → new on its edge
+    or in its cell. The category, Grant/Revoke and obligation/power colours are left
+    untouched, so the views keep their meaning while the differences stand out.
 
 ### Planned
 
-- Diff-aware Domain, Rules and Policy views; change note in the documentation export ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
+- Change note in the documentation export; side-by-side baseline/current diagrams ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
 - Executable tests generated from the Gherkin features ([#14](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/14)).
 
 ## [1.0.0] — 2026-09-14

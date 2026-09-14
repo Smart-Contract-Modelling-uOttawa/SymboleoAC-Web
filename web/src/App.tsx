@@ -391,9 +391,9 @@ export function App() {
                   ? <DiagnosticsView issues={result.issues} />
                   : <div style={{ padding: 12, color: '#9cdcfe' }}>Live diagnostics (squiggles) appear in the editor as you type. This list shows diagnostics from the most recent <em>Generate</em>.</div>
               )}
-              {tab === 'domain' && <ClassDiagram model={model} />}
-              {tab === 'diagram' && <Diagram model={model} />}
-              {tab === 'matrix' && <Matrix model={model} />}
+              {tab === 'domain' && <ClassDiagram model={model} diff={diff} baseline={baselineModel} />}
+              {tab === 'diagram' && <Diagram model={model} diff={diff} baseline={baselineModel} />}
+              {tab === 'matrix' && <Matrix model={model} diff={diff} baseline={baselineModel} />}
               {tab === 'explain' && (
                 <ExplainView model={model} editor={editorInst} getSource={() => sourceRef.current}
                   diff={diff} baseline={baseline ? { name: baseline.name, model: baselineModel } : null} />
