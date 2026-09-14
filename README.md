@@ -76,16 +76,17 @@ The Explain tab describes the contract in plain language, for people who are not
 | 6 | **Go to Definition, Find References, Hover, Rename** | <kbd>F12</kbd> / <kbd>Ctrl</kbd>+click jumps from any reference — a role, event, asset, obligation, power, rule, type, parameter, or enumeration value — to its declaration; <kbd>Shift</kbd>+<kbd>F12</kbd> lists every use; hovering shows what an identifier is, where it is declared, and (for norms) the specifier's comment; <kbd>F2</kbd> renames it everywhere, refusing keywords and clashes. Works even though the SymboleoAC grammar references most names as plain identifiers. |
 | 7 | **Plain‑language explanations (Explain tab)** | Every obligation, surviving obligation and power — and the contract as a whole — explained for non‑specialists in three switchable styles (fact sheet, plain‑English clause, **Gherkin** feature file that parses with the reference parser), generated deterministically from the specification with clickable identifiers and cross‑norm links. See *Understand the contract* above. |
 | 8 | **Integrated documentation export** | One self‑contained, printable HTML file with the overview, both diagrams, the policy matrix, the explanations in all styles, and the syntax‑coloured, cross‑linked specification. |
-| 9 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
-| 10 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
-| 11 | **Built‑in examples & tutorial** | Start instantly from real contracts via the **Example** dropdown — `MeatSale`, `VaccineProcurement`, and the Incoterms 2020 `FOB` trade term — or learn the language with `Tutorial`, a deliberately broken contract whose 22 commented problems (naming, typing, declarations, norms, access control, syntax) you fix one by one until it compiles. |
-| 12 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
-| 13 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
-| 14 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
-| 15 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
-| 16 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
-| 17 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
-| 18 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
+| 9 | **Compare two versions** | Pick a baseline (a snapshot of the current text, a file, or an example) and see both the **text diff** side by side and the **changes in meaning** in the Explain tab: norms added, removed, renamed or changed, slot by slot; declarations, domain types and access rules that differ; outline markers and gutter bars point to what to inspect. Renames are recognised, and formatting or comment edits do not count as changes. **Copy change note** exports the list as Markdown. |
+| 10 | **One‑click JavaScript generation** | Turn a contract into a runnable Node/JS package (built on `symboleoac-js-core`) with the **Generate JS** button. |
+| 11 | **Smart code formatter** | <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> re‑indents the whole contract (3‑space), lays out obligations/powers across readable lines, reflows long boolean conditions, and collapses stray blank lines. |
+| 12 | **Built‑in examples & tutorial** | Start instantly from real contracts via the **Example** dropdown — `MeatSale`, `VaccineProcurement`, and the Incoterms 2020 `FOB` trade term — or learn the language with `Tutorial`, a deliberately broken contract whose 22 commented problems (naming, typing, declarations, norms, access control, syntax) you fix one by one until it compiles. |
+| 13 | **Open & Save to disk** | Load a `.symboleo` file and save edits back **in place** (Chrome/Edge File System Access API), with **Save As** and a download fallback everywhere else. |
+| 14 | **Generated‑code browser** | Explore the generated package as a file tree, view each file with JS/JSON highlighting, **Copy** a file, or **Download .zip** the whole thing. |
+| 15 | **Structured outline** | A live, sectioned outline of the contract — Domain and Declarations decomposed by category — with expand/collapse and click‑to‑navigate to any element in the editor. |
+| 16 | **Domain class diagram** | See the domain ontology as a colour‑coded UML class diagram (inheritance, stereotypes, associations) with zoom controls that relayout to fill the panel. |
+| 17 | **Rules network diagram** | Visualize access‑control rules as a colour‑coded network (green Grant / red Revoke) over the parties' obligations and powers — hover a rule for its *On*/*by* details. |
+| 18 | **Share by link** | The **Share** button packs the current contract into a URL — send it and the recipient opens the exact same model, no server storage. |
+| 19 | **Zero‑install & secure** | A static front end on GitHub Pages talking to the backend over `wss://`/`https://` — open a URL and you're working. |
 
 ---
 
@@ -98,9 +99,10 @@ The Explain tab describes the contract in plain language, for people who are not
 5. **Visualize** — switch to the **Domain**, **Rules**, or **Policy** tabs to see the model as diagrams (zoom and hover for detail).
 6. **Understand** — open the **Explain** tab for plain‑language explanations of each obligation and power and of the whole contract; pick a style (fact sheet, plain‑English clause, Gherkin) and Brief or Full; click identifiers to jump to the source and norm names to jump between explanations. Requires an error‑free specification.
 7. **Document** — **Save documentation…** (Explain tab) writes one self‑contained HTML file with the overview, diagrams, policy matrix, explanations, and the cross‑linked specification; **Copy/Save Markdown** export the explanations alone.
-8. **Generate JS** — click the button; browse the generated files; **Copy** a file or **Download .zip**.
-9. **Share** — click **Share** to copy a self‑contained link to the current contract.
-10. **Save** / **Save As…** your contract back to disk.
+8. **Compare** — pick a baseline in the **Compare…** menu (snapshot the current text before editing, open a file, or choose an example). The **Diff** button shows the two texts side by side; the Explain tab lists the changes in meaning (and marks them in each norm's fact sheet), the Outline marks added / modified / renamed entries, and the editor gutter shows changed lines. **Copy change note** exports the changes as Markdown; **×** stops comparing.
+9. **Generate JS** — click the button; browse the generated files; **Copy** a file or **Download .zip**.
+10. **Share** — click **Share** to copy a self‑contained link to the current contract.
+11. **Save** / **Save As…** your contract back to disk.
 
 > **Browser note:** *Save in place* and *Open* use the File System Access API (Chrome & Edge). Firefox/Safari fall back to a normal file‑open dialog and a download for saving. Everything else works in all modern browsers.
 

@@ -7,7 +7,30 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
 
 ## [Unreleased]
 
-- Compare two versions of a contract: text, structural and meaning diff ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
+### Added
+
+- **Compare** ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)):
+  a baseline (snapshot of the current text, a file, or a built-in example) can be
+  compared with the contract being edited.
+  - Side-by-side **text diff** in the editor slot (Monaco diff editor; the right-hand
+    side is the live editor model, so editing continues with diagnostics and
+    completion), toggled with the **Diff** button.
+  - **Changes in meaning** at the top of the Explain tab: norms added, removed,
+    renamed and changed, with the fact-sheet slots that differ (added and removed
+    clauses, before/after values); declarations, domain types and access rules
+    added, removed, renamed or changed; overview slots that differ. Renames are
+    detected on the normalized model and applied before comparing, so renaming a
+    role does not report every norm that mentions it as rewritten. Formatting and
+    comment edits are neutral by construction.
+  - Change badges on the norm blocks and inline marks in the fact sheet (added
+    items highlighted, removed items struck through, "was: …" for scalar slots);
+    **Copy change note** exports the changes as Markdown.
+  - Outline markers (A / M / R, removed entries struck through) and editor gutter
+    bars (green added, blue modified, red deleted lines) while a baseline is set.
+
+### Planned
+
+- Diff-aware Domain, Rules and Policy views; change note in the documentation export ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
 - Executable tests generated from the Gherkin features ([#14](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/14)).
 
 ## [1.0.0] — 2026-09-14

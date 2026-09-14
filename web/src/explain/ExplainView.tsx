@@ -3,13 +3,14 @@ import type * as monaco from '@codingame/monaco-vscode-editor-api';
 import type { ContractModel } from '../model/api.js';
 import type { ExplainNorm } from './types.js';
 import {
-  GLOSSARY, capitalize, joinList, overview, rulePhrase, slots,
+  GLOSSARY, capitalize, joinList, overview, plain, rulePhrase, slots,
   type NormSlots, type OverviewSlots, type Rich, type Frag,
 } from './verbalize.js';
 import { toMarkdown, proseRich, type Detail } from './markdown.js';
 import { saveBlobAs } from '../fileio.js';
 import { buildDocumentHtml } from './document.js';
 import { gherkinNorm, gherkinFeature, featureText, type GLine } from './gherkin.js';
+import { diffMarkdown, type ChangeKind, type ContractDiff, type NormChange, type SlotChange } from './diff.js';
 
 export type ExplainStyle = 'a' | 'b' | 'c';
 const STYLE_KEY = 'symboleoac.explainStyle';
@@ -26,7 +27,12 @@ const C = {
   accent: '#9cdcfe', code: '#2a2d2e', note: '#2b2a22',
   obl: '#7fb0df', oblSoft: '#1f2e3d', surv: '#6cc5b4', survSoft: '#1b3330', pow: '#e0a15a', powSoft: '#3a2c1b',
   err: '#f48771', warn: '#cca700',
+  added: '#89d185', addedSoft: '#1e3a22', removed: '#f48771', removedSoft: '#3d1f1c', changed: '#75beff', changedSoft: '#1c2f43', renamed: '#c586c0', renamedSoft: '#33203a',
 };
+const CHANGE_COLOUR: Record<ChangeKind, [string, string]> = {
+  added: [C.added, C.addedSoft], removed: [C.removed, C.removedSoft], changed: [C.changed, C.changedSoft], renamed: [C.renamed, C.renamedSoft], unchanged: [C.muted, C.code],
+};
+const rkey = (r: Rich): string => plain(r).replace(/\s+/g, ' ').trim();
 const kindColor = (k: ExplainNorm['kind']) => (k === 'power' ? [C.pow, C.powSoft] : k === 'survivingObligation' ? [C.surv, C.survSoft] : [C.obl, C.oblSoft]);
 const KIND_LABEL: Record<ExplainNorm['kind'], string> = { obligation: 'Obligation', survivingObligation: 'Surviving obligation', power: 'Power' };
 /** Slot label -> glossary entry (tooltip). */
@@ -43,7 +49,14 @@ const LABEL_GLOSS: Record<string, string> = {
 type Nav = (line?: number, col?: number) => void;
 type Ctx = { nav: Nav; pos: Map<string, { line: number; col: number }>; normKinds: Map<string, ExplainNorm['kind']>; goToNorm: (n: string) => void };
 
-export function ExplainView({ model, editor, getSource }: { model: ContractModel | null; editor: monaco.editor.IStandaloneCodeEditor | null; getSource: () => string }) {
+type Baseline = { name: string; model: ContractModel | null } | null;
+
+export function ExplainView({ model, editor, getSource, diff = null, baseline = null }: {
+  model: ContractModel | null; editor: monaco.editor.IStandaloneCodeEditor | null; getSource: () => string;
+  /** Semantic comparison with the baseline (issue #15); null when no baseline or when either side has errors. */
+  diff?: ContractDiff | null;
+  baseline?: Baseline;
+}) {
   const [style, setStyle] = useState<ExplainStyle>(() => {
     try { const s = localStorage.getItem(STYLE_KEY); if (s === 'a' || s === 'b' || s === 'c') return s; } catch { /* ignore */ }
     return 'a';
@@ -122,6 +135,11 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
     const ok = await saveBlobAs(`${ex.contract.name || 'contract'}-explained.md`, new Blob([text], { type: 'text/markdown' }), { 'text/markdown': ['.md'] });
     if (ok) flash('Markdown saved');
   };
+  const copyChanges = async () => {
+    if (!diff) return;
+    try { await navigator.clipboard.writeText(diffMarkdown(diff, ex.contract.name)); flash('Change note copied to clipboard'); }
+    catch { flash('Copy failed'); }
+  };
   const saveFeature = async () => {
     const text = featureText(gherkinFeature(model, detail));
     const ok = await saveBlobAs(`${ex.contract.name || 'contract'}.feature`, new Blob([text], { type: 'text/plain' }), { 'text/plain': ['.feature'] });
@@ -188,10 +206,16 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
           <span style={{ width: 1, height: 18, background: C.line }} />
           <button type="button" onClick={previewDoc} style={toolBtn} title="Open the integrated documentation (overview, diagrams, policy, explanations, source) in a new tab">Documentation</button>
           <button type="button" onClick={saveDoc} style={toolBtn} title="Save the integrated documentation as one self-contained HTML file">Save documentation…</button>
+          {diff && <>
+            <span style={{ width: 1, height: 18, background: C.line }} />
+            <button type="button" onClick={copyChanges} style={toolBtn} title="Copy the changes since the baseline as a Markdown change note">Copy change note</button>
+          </>}
           {note && <span style={{ color: C.muted, fontSize: 12 }}>{note}</span>}
           {d.warnings > 0 && <span style={{ color: C.warn, fontSize: 12, marginLeft: 'auto' }}>{d.warnings} warning{d.warnings === 1 ? '' : 's'} (tolerated)</span>}
         </div>
         <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 12 }}>{STYLES.find((s) => s.id === style)?.hint}</p>
+
+        {baseline && <Changes diff={diff} baseline={baseline} ctx={ctx!} />}
 
         <H2>The contract as a whole</H2>
         <Overview ov={ov} ctx={ctx!} contractName={ex.contract.name} />
@@ -203,7 +227,8 @@ export function ExplainView({ model, editor, getSource }: { model: ContractModel
             <section key={kind}>
               <H2>{label}</H2>
               {lede && <p style={{ margin: '0 0 8px', color: C.muted }}>{lede}</p>}
-              {ns.map((n) => <NormBlock key={n.name} n={n} s={slots(n, rules)} style={style} detail={detail} ctx={ctx!} />)}
+              {ns.map((n) => <NormBlock key={n.name} n={n} s={slots(n, rules)} style={style} detail={detail} ctx={ctx!}
+                chg={diff?.norms.find((c) => c.name === n.name && c.change !== 'unchanged' && c.change !== 'removed')} />)}
             </section>
           );
         })}
@@ -309,17 +334,19 @@ function Overview({ ov, ctx, contractName }: { ov: OverviewSlots; ctx: Ctx; cont
 
 // ------------------------------------------------------------------ norm blocks
 
-function NormBlock({ n, s, style, detail, ctx }: { n: ExplainNorm; s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx }) {
+function NormBlock({ n, s, style, detail, ctx, chg }: { n: ExplainNorm; s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx; chg?: NormChange }) {
   const [color, soft] = kindColor(s.kind);
+  const border = chg ? CHANGE_COLOUR[chg.change][0] : C.line;
   return (
-    <article id={`explain-norm-${s.name}`} style={{ marginTop: 12, border: `1px solid ${C.line}`, borderRadius: 6, background: C.panel, overflow: 'hidden', transition: 'outline .2s' }}>
+    <article id={`explain-norm-${s.name}`} style={{ marginTop: 12, border: `1px solid ${C.line}`, borderLeft: `3px solid ${border}`, borderRadius: 6, background: C.panel, overflow: 'hidden', transition: 'outline .2s' }}>
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '8px 14px', borderBottom: `1px solid ${C.line}` }}>
         <span title={GLOSSARY[s.kind]} style={{ fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 600, padding: '1px 7px', borderRadius: 3, color, background: soft, cursor: 'help' }}>{KIND_LABEL[s.kind]}</span>
         <span style={{ fontWeight: 600 }}><code style={{ fontSize: 13, color: C.text }}>{s.name}</code></span>
+        {chg && <Tag kind={chg.change}>{chg.change === 'renamed' ? <>renamed from <code style={{ fontSize: 11 }}>{chg.oldName}</code></> : chg.change}{chg.noteChanged ? ', note changed' : ''}</Tag>}
         <button type="button" onClick={() => ctx.nav(s.line, s.col)} style={{ ...linkBtn, marginLeft: 'auto' }} title="Go to the source">line {s.line}</button>
       </header>
       <div style={{ padding: '12px 14px 14px' }}>
-        {style === 'a' && <FactSheet s={s} detail={detail} ctx={ctx} />}
+        {style === 'a' && <FactSheet s={s} detail={detail} ctx={ctx} chg={chg} />}
         {style === 'b' && <Prose s={s} detail={detail} ctx={ctx} />}
         {style === 'c' && <GherkinBlock lines={gherkinNorm(n, s)} detail={detail} ctx={ctx} color={color} />}
         {detail === 'full' && s.authorNote && (
@@ -332,38 +359,167 @@ function NormBlock({ n, s, style, detail, ctx }: { n: ExplainNorm; s: NormSlots;
   );
 }
 
-const Links = ({ names, ctx }: { names: string[]; ctx: Ctx }) => (
-  <RichText r={joinList(names.map((n) => [{ norm: n }]), 'and')} ctx={ctx} />
-);
-
 // --- Style A: fact sheet -------------------------------------------------------
 
-function FactSheet({ s, detail, ctx }: { s: NormSlots; detail: Detail; ctx: Ctx }) {
+function FactSheet({ s, detail, ctx, chg }: { s: NormSlots; detail: Detail; ctx: Ctx; chg?: NormChange }) {
   const third = (b: boolean) => (b ? <span style={{ color: C.muted }}> — third party</span> : null);
+  const sc = (label: string) => chg?.slots.find((c) => c.slot === label);
+  // A list slot: current items, those added since the baseline marked, removed ones appended struck through.
+  const list = (label: string, items: Rich[], empty: React.ReactNode, prefix?: React.ReactNode): React.ReactNode => {
+    const c = sc(label);
+    if (!c) return items.length ? <>{prefix}<Bullets items={items} ctx={ctx} /></> : empty;
+    return <>{items.length ? prefix : null}<MarkedBullets items={items} change={c} ctx={ctx} />{!items.length && <div>{empty}</div>}</>;
+  };
+  // A scalar slot: the current value, then "was: …" when it changed.
+  const scalar = (label: string, node: React.ReactNode): React.ReactNode => {
+    const c = sc(label);
+    return c ? <>{node}<Was r={c.before ?? null} ctx={ctx} /></> : node;
+  };
   const rows: [string, React.ReactNode][] = s.isPower ? [
-    ['Who holds it', <><RichText r={s.debtorLong} ctx={ctx} />{third(s.debtorThird)}, against <RichText r={s.creditorLong} ctx={ctx} />{third(s.creditorThird)}</>],
-    ['Arises', s.created ? <>when <RichText r={s.created} ctx={ctx} /></> : 'at the start of the contract'],
-    ['Exercisable', s.binding ? <>once <Bullets items={s.binding} ctx={ctx} /></> : 'at will (no further condition)'],
-    ['Effect', <b><RichText r={capitalize(s.must[0] ?? [])} ctx={ctx} /></b>],
+    ['Who holds it', scalar('Who holds it', <><RichText r={s.debtorLong} ctx={ctx} />{third(s.debtorThird)}, against <RichText r={s.creditorLong} ctx={ctx} />{third(s.creditorThird)}</>)],
+    ['Arises', scalar('Arises', s.created ? <>when <RichText r={s.created} ctx={ctx} /></> : 'at the start of the contract')],
+    ['Exercisable', list('Exercisable', s.binding ?? [], 'at will (no further condition)', 'once ')],
+    ['Effect', list('Effect', s.must.map((m, i) => (i === 0 ? capitalize(m) : m)), <Empty>none</Empty>)],
   ] : [
-    ['Who owes', <><RichText r={s.debtorLong} ctx={ctx} />{third(s.debtorThird)} to <RichText r={s.creditorLong} ctx={ctx} />{third(s.creditorThird)}</>],
-    ['Created', s.created ? <>each time <RichText r={s.created} ctx={ctx} /></> : 'at the start of the contract (no trigger)'],
-    ['Binding', s.binding ? <>once <Bullets items={s.binding} ctx={ctx} /></> : 'immediately (no condition)'],
-    ['Must bring about', <Bullets items={s.must} ctx={ctx} />],
+    ['Who owes', scalar('Who owes', <><RichText r={s.debtorLong} ctx={ctx} />{third(s.debtorThird)} to <RichText r={s.creditorLong} ctx={ctx} />{third(s.creditorThird)}</>)],
+    ['Created', scalar('Created', s.created ? <>each time <RichText r={s.created} ctx={ctx} /></> : 'at the start of the contract (no trigger)')],
+    ['Binding', list('Binding', s.binding ?? [], 'immediately (no condition)', 'once ')],
+    ['Must bring about', list('Must bring about', s.must, <Empty>nothing</Empty>)],
   ];
   if (detail === 'brief') return <Rows rows={rows} />;
   if (!s.isPower) {
-    rows.push(['Deadline', s.deadlines.length ? <Bullets items={s.deadlines} ctx={ctx} /> : <Empty>none stated</Empty>]);
+    rows.push(['Deadline', list('Deadline', s.deadlines, <Empty>none stated</Empty>)]);
     rows.push(['Otherwise', 'the obligation is violated']);
     if (s.survives) rows.push(['Survives', 'yes: still owed after the contract ends']);
   }
-  rows.push(['Access administered by', s.controller ? <RichText r={s.controller} ctx={ctx} /> : <Empty>not specified</Empty>]);
-  rows.push(['Refers to', s.dependsOn.length ? <Links names={s.dependsOn} ctx={ctx} /> : <Empty>no other norm</Empty>]);
-  rows.push(['Referred to by', s.feeds.length ? <Links names={s.feeds} ctx={ctx} /> : <Empty>no other norm</Empty>]);
-  rows.push(['Access rules', s.acRules.length
-    ? <ul style={ul}>{s.acRules.map((r) => <li key={r.name}><RichText r={rulePhrase(r)} ctx={ctx} /></li>)}</ul>
-    : <Empty>none touch this {s.isPower ? 'power' : 'obligation'}</Empty>]);
+  rows.push(['Access administered by', scalar('Access administered by', s.controller ? <RichText r={s.controller} ctx={ctx} /> : <Empty>not specified</Empty>)]);
+  rows.push(['Refers to', list('Refers to', s.dependsOn.map((n): Rich => [{ norm: n }]), <Empty>no other norm</Empty>)]);
+  rows.push(['Referred to by', list('Referred to by', s.feeds.map((n): Rich => [{ norm: n }]), <Empty>no other norm</Empty>)]);
+  rows.push(['Access rules', list('Access rules', s.acRules.map(rulePhrase), <Empty>none touch this {s.isPower ? 'power' : 'obligation'}</Empty>)]);
   return <Rows rows={rows} />;
+}
+
+/** Bulleted list with the items added since the baseline marked and the removed ones struck through. */
+function MarkedBullets({ items, change, ctx }: { items: Rich[]; change: SlotChange; ctx: Ctx }) {
+  const added = new Set(change.added.map(rkey));
+  const all: { r: Rich; st: 'same' | 'added' | 'removed' }[] = [
+    ...items.map((r) => ({ r, st: added.has(rkey(r)) ? 'added' as const : 'same' as const })),
+    ...change.removed.map((r) => ({ r, st: 'removed' as const })),
+  ];
+  return (
+    <ul style={ul}>
+      {all.map((x, i) => (
+        <li key={i} style={x.st === 'removed' ? { color: C.removed, textDecoration: 'line-through', opacity: .8 } : undefined}>
+          {x.st !== 'same' && <Tag kind={x.st}>{x.st}</Tag>}<RichText r={x.r} ctx={ctx} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const Was = ({ r, ctx }: { r: Rich | null; ctx: Ctx }) => (
+  <div style={{ color: C.muted, fontSize: 12 }}>
+    <Tag kind="removed">was</Tag>{r ? <span style={{ textDecoration: 'line-through' }}><RichText r={r} ctx={ctx} /></span> : <Empty>nothing</Empty>}
+  </div>
+);
+
+const Tag = ({ kind, children }: { kind: ChangeKind | 'same'; children: React.ReactNode }) => {
+  const [color, soft] = kind === 'same' ? [C.muted, C.code] : CHANGE_COLOUR[kind];
+  return <span style={{ display: 'inline-block', fontSize: 10, letterSpacing: '.05em', textTransform: 'uppercase', fontWeight: 600, padding: '0 5px', marginRight: 6, borderRadius: 3, color, background: soft, verticalAlign: 'middle' }}>{children}</span>;
+};
+
+// --- Changes since the baseline ------------------------------------------------
+
+function Changes({ diff, baseline, ctx }: { diff: ContractDiff | null; baseline: NonNullable<Baseline>; ctx: Ctx }) {
+  const box: React.CSSProperties = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: '12px 16px' };
+  if (!baseline.model) return <><H2>Changes since {baseline.name}</H2><div style={box}><Empty>Loading the baseline's model…</Empty></div></>;
+  if (!diff) {
+    const errs = baseline.model.diagnostics?.errors ?? 0;
+    return <><H2>Changes since {baseline.name}</H2><div style={box}>
+      <Empty>{errs > 0 ? `The baseline has ${errs} validation error${errs === 1 ? '' : 's'}; ` : 'One of the two versions has validation errors; '}only the text diff is available (the Diff button in the toolbar).</Empty>
+    </div></>;
+  }
+  if (diff.total === 0) return <><H2>Changes since {baseline.name}</H2><div style={box}><Empty>No change in meaning: both versions describe the same contract (formatting and comments aside).</Empty></div></>;
+
+  const changedNorms = diff.norms.filter((n) => n.change !== 'unchanged');
+  const count = (k: ChangeKind) => changedNorms.filter((n) => n.change === k).length;
+  const groups = ['Declarations', 'Parameters', 'Domain', 'Access rules'].map((g) => [g, diff.items.filter((it) => it.group === g)] as const).filter(([, xs]) => xs.length);
+  const kindWord = (k: ExplainNorm['kind']) => (k === 'survivingObligation' ? 'surviving obligation' : k);
+  const slotList = (sc: SlotChange[]) => (
+    <ul style={{ ...ul, marginTop: 2 }}>
+      {sc.map((c, i) => (
+        <li key={i}>
+          <span style={{ color: C.muted, fontWeight: 600, fontSize: 12 }}>{c.slot}: </span>
+          {c.added.length || c.removed.length ? (
+            <ul style={ul}>
+              {c.added.map((r, j) => <li key={`a${j}`}><Tag kind="added">added</Tag><RichText r={r} ctx={ctx} /></li>)}
+              {c.removed.map((r, j) => <li key={`r${j}`} style={{ color: C.removed }}><Tag kind="removed">removed</Tag><span style={{ textDecoration: 'line-through' }}><RichText r={r} ctx={ctx} /></span></li>)}
+            </ul>
+          ) : (
+            <>{c.before ? <span style={{ textDecoration: 'line-through', color: C.removed }}><RichText r={c.before} ctx={ctx} /></span> : <Empty>nothing</Empty>}
+              <span style={{ color: C.muted }}> → </span>
+              {c.after ? <RichText r={c.after} ctx={ctx} /> : <Empty>nothing</Empty>}</>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      <H2>Changes since {baseline.name}</H2>
+      <div style={box}>
+        <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
+          {diff.total} change{diff.total === 1 ? '' : 's'} in meaning
+          {changedNorms.length ? <>: norms {count('added')} added, {count('removed')} removed, {count('changed')} changed, {count('renamed')} renamed</> : null}
+          {diff.items.length ? <>; {diff.items.length} in declarations, domain or access rules</> : null}
+          {diff.overview.length ? <>; {diff.overview.length} in the contract overview</> : null}. Formatting and comment edits are not counted.
+        </div>
+        {changedNorms.length > 0 && (
+          <>
+            <div style={eyebrow}>Obligations and powers</div>
+            <ul style={{ ...ul, marginBottom: 10 }}>
+              {changedNorms.map((n) => (
+                <li key={`${n.change}-${n.name}`} style={{ marginTop: 4 }}>
+                  <Tag kind={n.change}>{n.change}</Tag>
+                  {n.change === 'removed'
+                    ? <code style={{ fontSize: 12.5, color: C.removed, textDecoration: 'line-through' }}>{n.name}</code>
+                    : <a href={`#explain-norm-${n.name}`} onClick={(e) => { e.preventDefault(); ctx.goToNorm(n.name); }} style={{ color: C.text, fontFamily: 'ui-monospace, monospace', fontSize: 12.5, textDecoration: 'underline dotted' }}>{n.name}</a>}
+                  <span style={{ color: C.muted }}> ({kindWord(n.kind)}{n.oldName ? <>, was <code style={{ fontSize: 12 }}>{n.oldName}</code></> : null}{n.noteChanged ? ', specifier\'s note changed' : ''})</span>
+                  {n.change === 'removed' && n.old && (
+                    <div style={{ color: C.muted, fontSize: 12 }}>was: <RichText r={n.old.debtorLong} ctx={ctx} /> {n.old.isPower ? 'held a power against' : 'owed'} <RichText r={n.old.creditorLong} ctx={ctx} />{n.old.must.length ? <>; {n.old.isPower ? 'effect' : 'had to bring about'}: <RichText r={joinList(n.old.must, 'and')} ctx={ctx} /></> : null}</div>
+                  )}
+                  {n.slots.length > 0 && slotList(n.slots)}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {groups.map(([g, xs]) => (
+          <div key={g}>
+            <div style={eyebrow}>{g}</div>
+            <ul style={{ ...ul, marginBottom: 10 }}>
+              {xs.map((it, i) => (
+                <li key={i}>
+                  <Tag kind={it.change}>{it.change}</Tag>
+                  {it.change === 'added' && <RichText r={it.after ?? []} ctx={ctx} />}
+                  {it.change === 'removed' && <span style={{ color: C.removed, textDecoration: 'line-through' }}><RichText r={it.before ?? []} ctx={ctx} /></span>}
+                  {it.change === 'renamed' && <><code style={{ fontSize: 12 }}>{it.oldName}</code><span style={{ color: C.muted }}> → </span><RichText r={it.after ?? []} ctx={ctx} /></>}
+                  {it.change === 'changed' && <><span style={{ color: C.removed, textDecoration: 'line-through' }}><RichText r={it.before ?? []} ctx={ctx} /></span><span style={{ color: C.muted }}> → </span><RichText r={it.after ?? []} ctx={ctx} /></>}
+                  {it.line ? <button type="button" onClick={() => ctx.nav(it.line)} style={{ ...linkBtn, marginLeft: 6 }} title="Go to the source">line {it.line}</button> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        {diff.overview.length > 0 && (
+          <>
+            <div style={eyebrow}>The contract as a whole</div>
+            {slotList(diff.overview)}
+          </>
+        )}
+      </div>
+    </>
+  );
 }
 
 const Rows = ({ rows }: { rows: [string, React.ReactNode][] }) => (

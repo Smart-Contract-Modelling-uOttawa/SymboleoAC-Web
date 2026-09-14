@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as monaco from '@codingame/monaco-vscode-editor-api';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { EditorPane } from './editor/EditorPane.js';
+import { DiffPane } from './editor/DiffPane.js';
+import { applyChangeGutter } from './editor/gutter.js';
+import { compareModels, type ContractDiff } from './explain/diff.js';
 import { generate, type GenerateResult } from './codegen/api.js';
 import { GeneratedFilesView } from './codegen/GeneratedFilesView.js';
 import { DiagnosticsView } from './codegen/DiagnosticsView.js';
@@ -43,6 +46,25 @@ export function App() {
   // Initial editor content resolved BEFORE the editor mounts, so a shared link
   // isn't clobbered by the wrapper re-applying the default sample after mount.
   const [boot, setBoot] = useState<{ code: string; name: string } | null>(null);
+  // Comparison baseline (issue #15): a frozen version of a contract to compare the
+  // current text against, its structured model, and whether the diff editor shows.
+  const [baseline, setBaseline] = useState<{ name: string; source: string } | null>(null);
+  const [baselineModel, setBaselineModel] = useState<ContractModel | null>(null);
+  const [compareOn, setCompareOn] = useState(false);
+
+  useEffect(() => {
+    setBaselineModel(null);
+    if (!baseline) return;
+    let cancelled = false;
+    getModel(baseline.source).then((m) => { if (!cancelled && m) setBaselineModel(m); });
+    return () => { cancelled = true; };
+  }, [baseline]);
+
+  const diff = useMemo<ContractDiff | null>(() => {
+    if (!baseline || !baselineModel || !model) return null;
+    if ((baselineModel.diagnostics?.errors ?? 1) > 0 || (model.diagnostics?.errors ?? 1) > 0) return null;
+    return compareModels(baselineModel, model, baseline.name);
+  }, [baseline, baselineModel, model]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +87,51 @@ export function App() {
   // those views is showing, debounced — each call spawns a JVM, so we avoid
   // per-keystroke churn.
   useEffect(() => {
-    const needed = outlineOn || tab === 'diagram' || tab === 'matrix' || tab === 'domain' || tab === 'explain';
+    const needed = outlineOn || tab === 'diagram' || tab === 'matrix' || tab === 'domain' || tab === 'explain' || !!baseline;
     if (!needed) return;
     const t = setTimeout(() => {
       getModel(sourceRef.current).then((m) => { if (m) setModel(m); });
     }, 800);
     return () => clearTimeout(t);
-  }, [revision, outlineOn, tab]);
+  }, [revision, outlineOn, tab, baseline]);
+
+  // Gutter markers (added / modified / deleted lines) while a baseline is set.
+  useEffect(() => {
+    if (!editorInst) return;
+    if (!baseline) { applyChangeGutter(editorInst, null); return; }
+    const t = setTimeout(() => applyChangeGutter(editorInst, baseline.source), 250);
+    return () => clearTimeout(t);
+  }, [editorInst, baseline, revision]);
+
+  const startCompare = useCallback(async (choice: string) => {
+    if (choice === 'clear') { setBaseline(null); setCompareOn(false); return; }
+    if (choice === 'snapshot') {
+      const hh = new Date();
+      const stamp = `${String(hh.getHours()).padStart(2, '0')}:${String(hh.getMinutes()).padStart(2, '0')}`;
+      setBaseline({ name: `${currentName} @ ${stamp}`, source: sourceRef.current });
+      setStatus({ kind: 'ok', message: 'baseline snapshot taken; edit to see the changes' });
+      return;
+    }
+    if (choice === 'file') {
+      try {
+        const f = await openFile();
+        if (!f) return;
+        setBaseline({ name: f.name, source: f.text });
+        setCompareOn(true);
+        setStatus({ kind: 'ok', message: `comparing with ${f.name}` });
+      } catch (e) {
+        setStatus({ kind: 'error', message: `open failed: ${(e as Error).message}` });
+      }
+      return;
+    }
+    if (choice.startsWith('sample:')) {
+      const s = SAMPLES.find((x) => x.name === choice.slice('sample:'.length));
+      if (!s) return;
+      setBaseline({ name: s.name, source: s.text });
+      setCompareOn(true);
+      setStatus({ kind: 'ok', message: `comparing with ${s.name}` });
+    }
+  }, [currentName]);
 
   const handleTextChanged = useCallback((txt: string) => {
     sourceRef.current = txt;
@@ -87,6 +147,15 @@ export function App() {
     const model = editorRef.current?.getModel();
     if (model) model.setValue(text);
   }, []);
+
+  // Dev-only hook for browser-driven checks (`window.__symboleoac.setSource(text)`); absent in production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __symboleoac?: unknown }).__symboleoac = {
+      setSource: (text: string, name?: string) => setEditorContent(text, name ?? currentName),
+      getSource: () => sourceRef.current,
+    };
+  }, [setEditorContent, currentName]);
 
   const handleEditorReady = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
@@ -209,6 +278,35 @@ export function App() {
         </button>
         <button type="button" style={btn} onClick={handleShare} title="Copy a shareable link to this contract">Share</button>
 
+        <select
+          value=""
+          onChange={(e) => { const v = e.target.value; e.target.value = ''; if (v) void startCompare(v); }}
+          title="Compare the current contract with another version: what changed in the text and in the meaning of the norms"
+          style={{ background: '#3a3d41', color: '#fff', border: '1px solid #555', borderRadius: 2, padding: '3px 4px', fontSize: 12 }}
+        >
+          <option value="">Compare…</option>
+          <option value="snapshot">Snapshot the current text as baseline</option>
+          <option value="file">With a file…</option>
+          <optgroup label="With an example">
+            {SAMPLES.map((s) => <option key={s.name} value={`sample:${s.name}`}>{s.name}</option>)}
+          </optgroup>
+          {baseline && <option value="clear">Stop comparing</option>}
+        </select>
+        {baseline && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#9cdcfe' }}>
+            <span title={`Baseline: ${baseline.name}`} style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {baseline.name}</span>
+            <button
+              type="button"
+              onClick={() => setCompareOn((v) => !v)}
+              style={{ ...btn, padding: '3px 8px', background: compareOn ? '#0e639c' : '#3a3d41' }}
+              title="Show or hide the side-by-side text diff (the Explain tab and the Outline show the changes in meaning either way)"
+            >
+              Diff
+            </button>
+            <button type="button" onClick={() => void startCompare('clear')} style={{ ...btn, padding: '3px 7px' }} title="Stop comparing">×</button>
+          </span>
+        )}
+
         <div style={{ flex: 1 }} />
 
         <button
@@ -231,19 +329,33 @@ export function App() {
       <PanelGroup direction="horizontal" style={{ flex: 1, minHeight: 0 }}>
         {outlineOn && (
           <Panel id="outline" order={1} defaultSize={18} minSize={10}>
-            <Outline editor={editorInst} model={model} />
+            <Outline editor={editorInst} model={model} diff={diff} />
           </Panel>
         )}
         {outlineOn && <PanelResizeHandle style={{ width: 4, background: '#333', cursor: 'col-resize' }} />}
 
         <Panel id="editor" order={2} defaultSize={outlineOn ? 42 : 50} minSize={20}>
           {boot ? (
-            <EditorPane
-              initialCode={boot.code}
-              initialName={boot.name}
-              onTextChanged={handleTextChanged}
-              onEditorReady={handleEditorReady}
-            />
+            <div style={{ height: '100%', position: 'relative' }}>
+              {/* The main editor stays mounted (it owns the model and the language client);
+                  the diff view shares its model on the right-hand side. */}
+              <div style={{ height: '100%', display: compareOn && baseline ? 'none' : 'block' }}>
+                <EditorPane
+                  initialCode={boot.code}
+                  initialName={boot.name}
+                  onTextChanged={handleTextChanged}
+                  onEditorReady={handleEditorReady}
+                />
+              </div>
+              {compareOn && baseline && (
+                <DiffPane
+                  original={baseline.source}
+                  originalName={baseline.name}
+                  modified={editorInst?.getModel() ?? null}
+                  currentName={currentName}
+                />
+              )}
+            </div>
           ) : (
             <div style={{ padding: 12, color: '#9cdcfe' }}>Loading…</div>
           )}
@@ -260,7 +372,7 @@ export function App() {
                 ['domain', 'Domain'],
                 ['diagram', 'Rules'],
                 ['matrix', 'Policy'],
-                ['explain', 'Explain'],
+                ['explain', diff ? `Explain (${diff.total} change${diff.total === 1 ? '' : 's'})` : 'Explain'],
               ] as const).map(([t, label]) => (
                 <button
                   key={t}
@@ -292,7 +404,10 @@ export function App() {
               {tab === 'domain' && <ClassDiagram model={model} />}
               {tab === 'diagram' && <Diagram model={model} />}
               {tab === 'matrix' && <Matrix model={model} />}
-              {tab === 'explain' && <ExplainView model={model} editor={editorInst} getSource={() => sourceRef.current} />}
+              {tab === 'explain' && (
+                <ExplainView model={model} editor={editorInst} getSource={() => sourceRef.current}
+                  diff={diff} baseline={baseline ? { name: baseline.name, model: baselineModel } : null} />
+              )}
             </div>
           </div>
         </Panel>

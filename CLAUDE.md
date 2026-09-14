@@ -159,6 +159,24 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
   mixes with them. Comments that look like commented-out code are dropped.
 - Verify with `node bridge/test-explain.mjs http://localhost:3030` against a running bridge.
 
+## Compare (baseline vs. current, issue #15)
+
+- `web/src/explain/diff.ts`: `compareModels(baseModel, curModel, name)` aligns declarations,
+  parameters, domain types, access rules and norms by name, then detects renames on the
+  normalized model (identical signature after blanking the item's own name) and applies
+  declaration/rule renames before comparing norms. Norm changes are expressed as fact-sheet
+  slot changes (lists: added/removed items keyed on their plain text; scalars: before/after),
+  so the diff wording is the verbalizer's. `lineDiff` (LCS) feeds the editor gutter.
+- `App.tsx` owns the baseline `{name, source}`, fetches its `/model` once, computes the diff
+  with `useMemo`, and passes it to `ExplainView` (Changes block, badges, inline marks) and
+  `Outline` (A/M/R marks, removed entries). The diff is `null` while either side has errors.
+- `editor/DiffPane.tsx` is a Monaco diff editor whose *modified* side is the main editor's
+  model (shared, so the language client keeps working); the main `EditorPane` stays mounted
+  (display: none) while the diff shows. No `theme` option, as for every other editor.
+- `editor/gutter.ts` decorates the main editor with `linesDecorationsClassName` bars.
+- Dev-only hook for browser checks: `window.__symboleoac.setSource(text)` / `getSource()`
+  (guarded by `import.meta.env.DEV`; the Monaco textarea is not reachable by synthetic paste).
+
 ## Go to Definition / References / Hover / Rename (language server)
 
 - The upstream grammar refers to variables, norms and rules by plain `ID` (e.g.

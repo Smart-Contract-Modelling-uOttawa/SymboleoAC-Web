@@ -1,10 +1,26 @@
 import { useState } from 'react';
 import type * as monaco from '@codingame/monaco-vscode-editor-api';
 import type { ContractModel, Named } from '../model/api.js';
+import type { ChangeKind, ContractDiff } from '../explain/diff.js';
 
 type Props = {
   editor: monaco.editor.IStandaloneCodeEditor | null;
   model: ContractModel | null;
+  /** Comparison with a baseline (issue #15): marks entries added / modified / renamed, lists removed ones. */
+  diff?: ContractDiff | null;
+};
+
+const MARK: Record<ChangeKind, { letter: string; color: string; title: string }> = {
+  added: { letter: 'A', color: '#89d185', title: 'Added since the baseline' },
+  changed: { letter: 'M', color: '#75beff', title: 'Modified since the baseline' },
+  renamed: { letter: 'R', color: '#c586c0', title: 'Renamed since the baseline' },
+  removed: { letter: 'D', color: '#f48771', title: 'Present in the baseline only' },
+  unchanged: { letter: '', color: 'transparent', title: '' },
+};
+
+const Mark = ({ kind }: { kind: ChangeKind | undefined }) => {
+  const m = kind ? MARK[kind] : null;
+  return <span style={{ display: 'inline-block', width: 12, color: m?.color, fontWeight: 700, fontSize: 10 }} title={m?.title}>{m?.letter ?? ''}</span>;
 };
 
 type SectionKind = 'categories' | 'list' | 'link';
@@ -42,7 +58,9 @@ const rowBtn: React.CSSProperties = {
   padding: '0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
 };
 
-export function Outline({ editor, model }: Props) {
+export function Outline({ editor, model, diff = null }: Props) {
+  const marks = diff?.marks;
+  const removedIn = (section: string): string[] => (diff?.removed ?? []).filter((r) => r.section === section).map((r) => r.name);
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set(COLLAPSIBLE.filter((k) => !DEFAULT_EXPANDED.has(k))),
   );
@@ -86,11 +104,14 @@ export function Outline({ editor, model }: Props) {
             </button>
 
             {s.kind === 'categories' && !isCollapsed && s.cats && (
-              <CategoryBody cats={s.cats(model)} keyPrefix={s.key} nav={nav}
-                catCollapsed={catCollapsed} onToggleCat={(c) => toggle(catCollapsed, setCatCollapsed, c)} />
+              <>
+                <CategoryBody cats={s.cats(model)} keyPrefix={s.key} nav={nav} marks={marks}
+                  catCollapsed={catCollapsed} onToggleCat={(c) => toggle(catCollapsed, setCatCollapsed, c)} />
+                <NameList items={[]} nav={nav} indent={12} removed={removedIn(s.key)} />
+              </>
             )}
             {s.kind === 'list' && !isCollapsed && s.get && (
-              <NameList items={byName(s.get(model))} nav={nav} />
+              <NameList items={byName(s.get(model))} nav={nav} marks={marks} removed={removedIn(s.key)} />
             )}
           </div>
         );
@@ -110,12 +131,13 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function CategoryBody({ cats, keyPrefix, nav, catCollapsed, onToggleCat }: {
+function CategoryBody({ cats, keyPrefix, nav, catCollapsed, onToggleCat, marks }: {
   cats: Record<string, Named[]>;
   keyPrefix: string;
   nav: (l?: number, c?: number) => void;
   catCollapsed: Set<string>;
   onToggleCat: (c: string) => void;
+  marks?: Map<string, ChangeKind>;
 }) {
   const present = Object.entries(cats).filter(([, items]) => items.length > 0);
   const ordered = present.sort(([a], [b]) => {
@@ -134,7 +156,7 @@ function CategoryBody({ cats, keyPrefix, nav, catCollapsed, onToggleCat }: {
               style={{ ...rowBtn, color: '#c586c0', fontSize: 11 }} title="Expand / collapse">
               {isCollapsed ? '▸ ' : '▾ '}{cat}
             </button>
-            {!isCollapsed && <NameList items={byName(items)} nav={nav} indent={12} />}
+            {!isCollapsed && <NameList items={byName(items)} nav={nav} indent={12} marks={marks} />}
           </div>
         );
       })}
@@ -142,14 +164,23 @@ function CategoryBody({ cats, keyPrefix, nav, catCollapsed, onToggleCat }: {
   );
 }
 
-function NameList({ items, nav, indent = 0 }: { items: Named[]; nav: (l?: number, c?: number) => void; indent?: number }) {
+function NameList({ items, nav, indent = 0, marks, removed = [] }: {
+  items: Named[]; nav: (l?: number, c?: number) => void; indent?: number;
+  marks?: Map<string, ChangeKind>; removed?: string[];
+}) {
+  if (items.length === 0 && removed.length === 0) return null;
   return (
     <div style={{ paddingLeft: 12 + indent }}>
       {items.map((it, i) => (
         <button key={`${it.name}-${i}`} type="button" style={{ ...rowBtn, color: '#d4d4d4' }}
                 onClick={() => nav(it.line, it.col)} title={it.name}>
-          {it.name || '(unnamed)'}
+          {marks && <Mark kind={marks.get(it.name)} />}{it.name || '(unnamed)'}
         </button>
+      ))}
+      {removed.map((name) => (
+        <div key={`removed-${name}`} style={{ ...rowBtn, color: '#f48771', textDecoration: 'line-through', cursor: 'default' }} title="Present in the baseline only">
+          <Mark kind="removed" />{name}
+        </div>
       ))}
     </div>
   );
