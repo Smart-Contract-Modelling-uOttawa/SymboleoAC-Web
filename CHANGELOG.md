@@ -27,6 +27,12 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
     **Copy change note** exports the changes as Markdown.
   - Outline markers (A / M / R, removed entries struck through) and editor gutter
     bars (green added, blue modified, red deleted lines) while a baseline is set.
+  - In the **Gherkin** style, a changed norm shows its baseline steps merged in: removed
+    steps struck through with a "−" gutter, added ones with "+", and the Changes block
+    names the scenarios that changed, were added or were removed.
+  - The **documentation export** includes a "Changes since <baseline>" section (norms,
+    declarations, domain, access rules, overview, affected scenarios), badges on changed
+    norm blocks, and the same Gherkin step marks, whenever a baseline is set.
   - A **Changes** toggle (off by default) in the Domain, Rules and Policy views:
     unchanged elements are dimmed to greys, added ones get a thick white outline,
     removed ones are drawn as dashed grey ghosts from the baseline, and labels carry
@@ -54,7 +60,6 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
 
 ### Planned
 
-- Change note in the documentation export; side-by-side baseline/current diagrams ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).
 - Executable tests generated from the Gherkin features ([#14](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/14)).
 
 ## [1.0.0] — 2026-09-14

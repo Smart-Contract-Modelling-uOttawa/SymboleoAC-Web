@@ -37,7 +37,8 @@ export type NormChange = {
   slots: SlotChange[];
   noteChanged: boolean;
   line: number; col: number;      // in the current text (baseline for removed norms)
-  old?: NormSlots;                // baseline slots (removed / changed / renamed)
+  old?: NormSlots;                // baseline slots, renames applied (removed / changed / renamed)
+  oldNorm?: ExplainNorm;          // baseline norm as extracted (removed / changed / renamed)
 };
 
 export type ItemChange = {
@@ -287,11 +288,11 @@ export function compareModels(base: ContractModel, cur: ContractModel, baselineN
     const noteChanged = noteOf(oldNorm) !== noteOf(n);
     const change: ChangeKind = ren ? 'renamed' : sc.length || noteChanged ? 'changed' : 'unchanged';
     if (change !== 'unchanged') marks.set(n.name, change);
-    norms.push({ name: n.name, oldName: ren ? oldNorm.name : undefined, kind: n.kind, change, slots: sc, noteChanged, line: n.line, col: n.col, old });
+    norms.push({ name: n.name, oldName: ren ? oldNorm.name : undefined, kind: n.kind, change, slots: sc, noteChanged, line: n.line, col: n.col, old, oldNorm });
   }
   for (const o of nA.removed) {
     removed.push({ name: o.name, section: section(o.kind), line: o.line });
-    norms.push({ name: o.name, kind: o.kind, change: 'removed', slots: [], noteChanged: false, line: o.line, col: o.col, old: oldMapped(o.name) });
+    norms.push({ name: o.name, kind: o.kind, change: 'removed', slots: [], noteChanged: false, line: o.line, col: o.col, old: oldMapped(o.name), oldNorm: o });
   }
 
   // 5. Contract overview (lists compared as sets, after renames).

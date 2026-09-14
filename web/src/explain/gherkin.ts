@@ -18,6 +18,7 @@
  */
 import type { ContractModel } from '../model/api.js';
 import type { EventRef, ExplainNorm, Prop, VarRef } from './types.js';
+import { lineDiff, renameRich } from './diff.js';
 import {
   EVENT_VERBS, clauses, effectPhrase, eventNoun, isTrue, overview, partyPhrase, pointPhrase, propPhrase,
   rulePhrase, slots, type NormSlots, type Rich,
@@ -193,6 +194,70 @@ export function featureText(lines: GLine[]): string {
       default: return `${pad}${gherkinText(l.text)}`;
     }
   }).join('\n') + '\n';
+}
+
+// ------------------------------------------------------------------ changed scenarios (issue #15)
+
+/** A Gherkin line with its comparison mark: present only in the current text (added) or only in the baseline (removed). */
+export type GDiffLine = GLine & { mark?: 'added' | 'removed' };
+
+export type ScenarioChanges = {
+  lines: GDiffLine[];          // baseline and current lines merged, in order, marked where they differ
+  changed: string[];           // scenario names (header text) with at least one differing step
+  added: string[];             // scenarios only in the current text
+  removed: string[];           // scenarios only in the baseline
+};
+
+const lineKey = (l: GLine): string => `${l.kind}|${l.kw ?? ''}|${gherkinText(l.text)}`;
+const isScenario = (l: GLine) => l.kind === 'header' && (l.kw === 'Scenario' || l.kw === 'Scenario Outline');
+
+/** Line diff of two Gherkin renderings, with the scenarios each difference falls in. */
+export function gherkinDiff(oldLines: GLine[], newLines: GLine[]): ScenarioChanges {
+  const a = oldLines.map(lineKey), b = newLines.map(lineKey);
+  const hunks = lineDiff(a, b);
+  const lines: GDiffLine[] = [];
+  let i = 0, j = 0;
+  for (const h of hunks) {
+    while (j < h.bStart) { lines.push(newLines[j]); i++; j++; }
+    for (let k = 0; k < h.aLen; k++) lines.push({ ...oldLines[h.aStart + k], mark: 'removed' });
+    for (let k = 0; k < h.bLen; k++) lines.push({ ...newLines[h.bStart + k], mark: 'added' });
+    i = h.aStart + h.aLen; j = h.bStart + h.bLen;
+  }
+  while (j < newLines.length) lines.push(newLines[j++]);
+  // Attribute marks to scenarios: a block runs from a scenario header to the next scenario header.
+  const changed: string[] = [], added: string[] = [], removed: string[] = [];
+  let current: GDiffLine | null = null;
+  let touched = false;
+  const flush = () => {
+    if (!current) return;
+    const name = plainText(current.text);
+    if (current.mark === 'added') added.push(name);
+    else if (current.mark === 'removed') removed.push(name);
+    else if (touched) changed.push(name);
+  };
+  for (const l of lines) {
+    if (isScenario(l)) { flush(); current = l; touched = false; continue; }
+    if (current && l.mark) touched = true;
+  }
+  flush();
+  // A scenario whose header was renamed shows as removed + added; report it once as changed.
+  for (const r of removed.slice()) {
+    const base = r.replace(/^\S+ /, '');
+    const twin = added.find((x) => x.replace(/^\S+ /, '') === base);
+    if (twin) { removed.splice(removed.indexOf(r), 1); added.splice(added.indexOf(twin), 1); changed.push(twin); }
+  }
+  return { lines, changed, added, removed };
+}
+
+/** Compare a norm's Gherkin with its baseline version (baseline identifiers mapped through renames). */
+export function gherkinNormDiff(oldNorm: ExplainNorm, oldSlots: NormSlots, n: ExplainNorm, s: NormSlots, renames: Map<string, string>): ScenarioChanges {
+  const oldLines = gherkinNorm(oldNorm, oldSlots).map((l) => ({ ...l, text: renameRich(l.text, renames) }));
+  return gherkinDiff(oldLines, gherkinNorm(n, s));
+}
+
+/** Names of a norm's scenarios (for added or removed norms). */
+export function scenarioNames(n: ExplainNorm, s: NormSlots): string[] {
+  return gherkinNorm(n, s).filter(isScenario).map((l) => plainText(l.text));
 }
 
 // Re-exported for renderers that need the event ref helpers.

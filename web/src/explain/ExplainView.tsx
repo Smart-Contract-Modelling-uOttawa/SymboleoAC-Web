@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type * as monaco from '@codingame/monaco-vscode-editor-api';
-import type { ContractModel } from '../model/api.js';
+import type { ContractModel, RuleModel } from '../model/api.js';
 import type { ExplainNorm } from './types.js';
 import {
   GLOSSARY, capitalize, joinList, overview, plain, rulePhrase, slots,
@@ -9,7 +9,7 @@ import {
 import { toMarkdown, proseRich, type Detail } from './markdown.js';
 import { saveBlobAs } from '../fileio.js';
 import { buildDocumentHtml } from './document.js';
-import { gherkinNorm, gherkinFeature, featureText, type GLine } from './gherkin.js';
+import { gherkinNorm, gherkinFeature, featureText, gherkinNormDiff, scenarioNames, type GDiffLine } from './gherkin.js';
 import { diffMarkdown, type ChangeKind, type ContractDiff, type NormChange, type SlotChange } from './diff.js';
 
 export type ExplainStyle = 'a' | 'b' | 'c';
@@ -148,7 +148,7 @@ export function ExplainView({ model, editor, getSource, diff = null, baseline = 
   // Integrated documentation: overview + diagrams + policy + explanations + source, one HTML file.
   const buildDoc = async () => {
     flash('Building documentation…');
-    const html = await buildDocumentHtml(model, getSource(), { style, detail });
+    const html = await buildDocumentHtml(model, getSource(), { style, detail, diff });
     return new Blob([html], { type: 'text/html;charset=utf-8' });
   };
   const previewDoc = async () => {
@@ -215,7 +215,7 @@ export function ExplainView({ model, editor, getSource, diff = null, baseline = 
         </div>
         <p style={{ margin: '6px 0 0', color: C.muted, fontSize: 12 }}>{STYLES.find((s) => s.id === style)?.hint}</p>
 
-        {baseline && <Changes diff={diff} baseline={baseline} ctx={ctx!} />}
+        {baseline && <Changes diff={diff} baseline={baseline} ctx={ctx!} style={style} norms={ex.norms} rules={rules} />}
 
         <H2>The contract as a whole</H2>
         <Overview ov={ov} ctx={ctx!} contractName={ex.contract.name} />
@@ -228,7 +228,7 @@ export function ExplainView({ model, editor, getSource, diff = null, baseline = 
               <H2>{label}</H2>
               {lede && <p style={{ margin: '0 0 8px', color: C.muted }}>{lede}</p>}
               {ns.map((n) => <NormBlock key={n.name} n={n} s={slots(n, rules)} style={style} detail={detail} ctx={ctx!}
-                chg={diff?.norms.find((c) => c.name === n.name && c.change !== 'unchanged' && c.change !== 'removed')} />)}
+                chg={diff?.norms.find((c) => c.name === n.name && c.change !== 'unchanged' && c.change !== 'removed')} renames={diff?.renames} />)}
             </section>
           );
         })}
@@ -334,8 +334,12 @@ function Overview({ ov, ctx, contractName }: { ov: OverviewSlots; ctx: Ctx; cont
 
 // ------------------------------------------------------------------ norm blocks
 
-function NormBlock({ n, s, style, detail, ctx, chg }: { n: ExplainNorm; s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx; chg?: NormChange }) {
+function NormBlock({ n, s, style, detail, ctx, chg, renames }: { n: ExplainNorm; s: NormSlots; style: ExplainStyle; detail: Detail; ctx: Ctx; chg?: NormChange; renames?: Map<string, string> }) {
   const [color, soft] = kindColor(s.kind);
+  // Gherkin style with a baseline: the baseline's lines merged in, removed ones struck, added ones marked.
+  const gherkinLines: GDiffLine[] = chg?.oldNorm && chg.old && renames
+    ? gherkinNormDiff(chg.oldNorm, chg.old, n, s, renames).lines
+    : gherkinNorm(n, s);
   const border = chg ? CHANGE_COLOUR[chg.change][0] : C.line;
   return (
     <article id={`explain-norm-${s.name}`} style={{ marginTop: 12, border: `1px solid ${C.line}`, borderLeft: `3px solid ${border}`, borderRadius: 6, background: C.panel, overflow: 'hidden', transition: 'outline .2s' }}>
@@ -348,7 +352,7 @@ function NormBlock({ n, s, style, detail, ctx, chg }: { n: ExplainNorm; s: NormS
       <div style={{ padding: '12px 14px 14px' }}>
         {style === 'a' && <FactSheet s={s} detail={detail} ctx={ctx} chg={chg} />}
         {style === 'b' && <Prose s={s} detail={detail} ctx={ctx} />}
-        {style === 'c' && <GherkinBlock lines={gherkinNorm(n, s)} detail={detail} ctx={ctx} color={color} />}
+        {style === 'c' && <GherkinBlock lines={gherkinLines} detail={detail} ctx={ctx} color={color} />}
         {detail === 'full' && s.authorNote && (
           <p style={{ margin: '12px 0 0', padding: '6px 10px', background: C.note, borderRadius: 4, color: C.muted, fontStyle: 'italic', fontSize: 12.5 }}>
             <b style={{ fontStyle: 'normal', color: C.text }}>Specifier's note:</b> {s.authorNote}
@@ -430,7 +434,23 @@ const Tag = ({ kind, children }: { kind: ChangeKind | 'same'; children: React.Re
 
 // --- Changes since the baseline ------------------------------------------------
 
-function Changes({ diff, baseline, ctx }: { diff: ContractDiff | null; baseline: NonNullable<Baseline>; ctx: Ctx }) {
+/** For the Gherkin style: which scenarios of a changed / added / removed norm are affected. */
+function scenarioSummary(n: NormChange, diff: ContractDiff, norms: ExplainNorm[], rules: RuleModel[]): { label: string; names: string[] }[] {
+  const cur = norms.find((x) => x.name === n.name);
+  if (n.change === 'added' && cur) return [{ label: 'scenarios added', names: scenarioNames(cur, slots(cur, rules)) }];
+  if (n.change === 'removed' && n.oldNorm && n.old) return [{ label: 'scenarios removed', names: scenarioNames(n.oldNorm, n.old) }];
+  if (cur && n.oldNorm && n.old) {
+    const d = gherkinNormDiff(n.oldNorm, n.old, cur, slots(cur, rules), diff.renames);
+    return [
+      ...(d.changed.length ? [{ label: 'scenarios changed', names: d.changed }] : []),
+      ...(d.added.length ? [{ label: 'scenarios added', names: d.added }] : []),
+      ...(d.removed.length ? [{ label: 'scenarios removed', names: d.removed }] : []),
+    ];
+  }
+  return [];
+}
+
+function Changes({ diff, baseline, ctx, style, norms, rules }: { diff: ContractDiff | null; baseline: NonNullable<Baseline>; ctx: Ctx; style: ExplainStyle; norms: ExplainNorm[]; rules: RuleModel[] }) {
   const box: React.CSSProperties = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: '12px 16px' };
   if (!baseline.model) return <><H2>Changes since {baseline.name}</H2><div style={box}><Empty>Loading the baseline's model…</Empty></div></>;
   if (!diff) {
@@ -489,6 +509,11 @@ function Changes({ diff, baseline, ctx }: { diff: ContractDiff | null; baseline:
                     <div style={{ color: C.muted, fontSize: 12 }}>was: <RichText r={n.old.debtorLong} ctx={ctx} /> {n.old.isPower ? 'held a power against' : 'owed'} <RichText r={n.old.creditorLong} ctx={ctx} />{n.old.must.length ? <>; {n.old.isPower ? 'effect' : 'had to bring about'}: <RichText r={joinList(n.old.must, 'and')} ctx={ctx} /></> : null}</div>
                   )}
                   {n.slots.length > 0 && slotList(n.slots)}
+                  {style === 'c' && scenarioSummary(n, diff, norms, rules).map((sc) => (
+                    <div key={sc.label} style={{ color: C.muted, fontSize: 12 }}>
+                      {sc.label}: {sc.names.map((x, i) => <span key={i}><code style={{ fontSize: 12, color: C.text }}>{x}</code>{i < sc.names.length - 1 ? ', ' : ''}</span>)}
+                    </div>
+                  ))}
                 </li>
               ))}
             </ul>
@@ -547,21 +572,30 @@ function Prose({ s, detail, ctx }: { s: NormSlots; detail: Detail; ctx: Ctx }) {
 
 // --- Style C: Gherkin ---------------------------------------------------------
 
-function GherkinBlock({ lines, detail, ctx, color }: { lines: GLine[]; detail: Detail; ctx: Ctx; color: string }) {
+function GherkinBlock({ lines, detail, ctx, color }: { lines: GDiffLine[]; detail: Detail; ctx: Ctx; color: string }) {
   const shown = lines.filter((l) => detail === 'full' || !l.full);
+  const marked = shown.some((l) => l.mark);
   const kwStyle = (kw: string): React.CSSProperties => ({
     color: kw === 'Given' || kw === 'When' || kw === 'Then' || kw === 'And' ? color : C.accent, fontWeight: 600,
+  });
+  // With a baseline, a two-character gutter: "+" added, "−" removed (struck through).
+  const gutter = (l: GDiffLine) => (marked
+    ? <span style={{ color: l.mark === 'added' ? C.added : l.mark === 'removed' ? C.removed : C.line, userSelect: 'none' }}>{l.mark === 'added' ? '+ ' : l.mark === 'removed' ? '− ' : '  '}</span>
+    : null);
+  const lineStyle = (l: GDiffLine, base?: React.CSSProperties): React.CSSProperties => ({
+    ...base,
+    ...(l.mark === 'removed' ? { textDecoration: 'line-through', opacity: .75, background: C.removedSoft } : l.mark === 'added' ? { background: C.addedSoft } : {}),
   });
   return (
     <pre style={{ margin: 0, font: '12.5px/1.55 ui-monospace, Consolas, monospace', whiteSpace: 'pre-wrap', color: C.text }}>
       {shown.map((l, i) => {
         const pad = '  '.repeat(Math.max(0, l.indent - 1));
-        if (l.kind === 'blank') return <span key={i}>{'\n'}</span>;
-        if (l.kind === 'comment') return <span key={i} style={{ color: C.muted }}>{pad}# <RichText r={l.text} ctx={ctx} />{'\n'}</span>;
-        if (l.kind === 'header') return <span key={i}>{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}:</span>{l.text.length ? ' ' : ''}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
-        if (l.kind === 'step') return <span key={i}>{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}</span> <RichText r={quoted(l.text)} ctx={ctx} />{'\n'}</span>;
-        if (l.kind === 'row') return <span key={i} style={{ color: C.muted }}>{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
-        return <span key={i} style={{ color: C.muted }}>{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'blank') return <span key={i}>{marked ? '  ' : ''}{'\n'}</span>;
+        if (l.kind === 'comment') return <span key={i} style={lineStyle(l, { color: C.muted })}>{gutter(l)}{pad}# <RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'header') return <span key={i} style={lineStyle(l)}>{gutter(l)}{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}:</span>{l.text.length ? ' ' : ''}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'step') return <span key={i} style={lineStyle(l)}>{gutter(l)}{pad}<span style={kwStyle(l.kw ?? '')}>{l.kw}</span> <RichText r={quoted(l.text)} ctx={ctx} />{'\n'}</span>;
+        if (l.kind === 'row') return <span key={i} style={lineStyle(l, { color: C.muted })}>{gutter(l)}{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
+        return <span key={i} style={lineStyle(l, { color: C.muted })}>{gutter(l)}{pad}<RichText r={l.text} ctx={ctx} />{'\n'}</span>;
       })}
     </pre>
   );

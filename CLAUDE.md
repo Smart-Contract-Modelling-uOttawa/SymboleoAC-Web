@@ -181,6 +181,10 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
   badges. Do not add hues: category, Grant/Revoke and solid/dotted are already taken. Mermaid
   class labels use `class Id["label"]` with members on `Id : member` lines (a label and a body
   cannot share one statement). The documentation export calls the builders without `changes`.
+- Gherkin diff: `gherkin.ts` `gherkinNormDiff(oldNorm, oldSlots, n, s, renames)` line-diffs the two
+  renderings (keys: kind|keyword|text) and reports changed/added/removed scenarios; `NormChange`
+  carries `oldNorm` and `old` (renamed slots) for it. `document.ts` takes `opts.diff` and emits a
+  "Changes" section (`changesHtml`), norm badges and marked Gherkin lines; `ExplainView` passes `diff`.
 - Dev-only hook for browser checks: `window.__symboleoac.setSource(text)` / `getSource()`
   (guarded by `import.meta.env.DEV`; the Monaco textarea is not reachable by synthetic paste).
 

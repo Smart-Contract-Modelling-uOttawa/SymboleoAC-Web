@@ -7,14 +7,15 @@
  * identifier in the text jumps to where it is declared.
  */
 import mermaid from 'mermaid';
-import type { ContractModel } from '../model/api.js';
+import type { ContractModel, RuleModel } from '../model/api.js';
 import { buildClassDiagramDef } from '../model/ClassDiagram.js';
 import { buildRulesDiagramDef } from '../model/Diagram.js';
 import { matrixTableHtml } from '../model/Matrix.js';
 import type { ExplainNorm } from './types.js';
 import { GLOSSARY, capitalize, joinList, overview, rulePhrase, slots, type NormSlots, type Rich } from './verbalize.js';
 import { proseRich, type Detail } from './markdown.js';
-import { gherkinNorm, gherkinText, type GLine } from './gherkin.js';
+import { gherkinNorm, gherkinText, gherkinNormDiff, scenarioNames, type GDiffLine } from './gherkin.js';
+import type { ContractDiff, NormChange, SlotChange } from './diff.js';
 import { symboleoacKeywords, symboleoacControlKeywords, symboleoacBuiltins } from '../editor/symboleoac.monarch.js';
 import { currentTheme } from '../editor/theme.js';
 
@@ -80,30 +81,40 @@ function prose(s: NormSlots, ctx: Ctx): string {
   return `<div class="prose"><p>${richHtml(main, ctx)}</p>${tail.length ? `<p class="tail full-only">${richHtml(tail, ctx)}</p>` : ''}</div>`;
 }
 
-function gherkinHtml(lines: GLine[], ctx: Ctx): string {
+function gherkinHtml(lines: GDiffLine[], ctx: Ctx): string {
   const quoted = (r: Rich): Rich => r.flatMap((f): Rich => (typeof f !== 'string' && ('code' in f || 'norm' in f) ? ['"', f, '"'] : [f]));
+  const marked = lines.some((l) => l.mark);
+  const cls = (l: GDiffLine, base = '') => {
+    const parts = [base, l.full ? 'full-only' : '', l.mark === 'added' ? 'g-add' : l.mark === 'removed' ? 'g-del' : ''].filter(Boolean);
+    return parts.length ? ` class="${parts.join(' ')}"` : '';
+  };
+  // With a baseline, a two-character gutter: "+" added, "−" removed.
+  const gut = (l: GDiffLine) => (marked ? `<span class="g-gutter">${l.mark === 'added' ? '+ ' : l.mark === 'removed' ? '− ' : '  '}</span>` : '');
   const body = lines.map((l) => {
     const pad = '  '.repeat(Math.max(0, l.indent - 1));
-    const full = l.full ? ' class="full-only"' : '';
     switch (l.kind) {
-      case 'blank': return `<span${full}>\n</span>`;
-      case 'header': return `<span${full}>${pad}<span class="gk struct">${esc(l.kw ?? '')}:</span>${l.text.length ? ' ' + richHtml(l.text, ctx) : ''}\n</span>`;
-      case 'step': return `<span${full}>${pad}<span class="gk step">${esc(l.kw ?? '')}</span> ${richHtml(quoted(l.text), ctx)}\n</span>`;
-      case 'comment': return `<span class="cmt${l.full ? ' full-only' : ''}">${pad}# ${esc(gherkinText(l.text))}\n</span>`;
-      case 'row': return `<span class="row${l.full ? ' full-only' : ''}">${pad}${esc(gherkinText(l.text))}\n</span>`;
-      default: return `<span class="desc${l.full ? ' full-only' : ''}">${pad}${richHtml(l.text, ctx)}\n</span>`;
+      case 'blank': return `<span${cls(l)}>${marked ? '  ' : ''}\n</span>`;
+      case 'header': return `<span${cls(l)}>${gut(l)}${pad}<span class="gk struct">${esc(l.kw ?? '')}:</span>${l.text.length ? ' ' + richHtml(l.text, ctx) : ''}\n</span>`;
+      case 'step': return `<span${cls(l)}>${gut(l)}${pad}<span class="gk step">${esc(l.kw ?? '')}</span> ${richHtml(quoted(l.text), ctx)}\n</span>`;
+      case 'comment': return `<span${cls(l, 'cmt')}>${gut(l)}${pad}# ${esc(gherkinText(l.text))}\n</span>`;
+      case 'row': return `<span${cls(l, 'row')}>${gut(l)}${pad}${esc(gherkinText(l.text))}\n</span>`;
+      default: return `<span${cls(l, 'desc')}>${gut(l)}${pad}${richHtml(l.text, ctx)}\n</span>`;
     }
   }).join('');
   return `<pre class="gherkin">${body}</pre>`;
 }
 
-function normBlock(n: ExplainNorm, s: NormSlots, ctx: Ctx): string {
-  return `<article class="norm-block ${s.kind}" id="norm-${esc(s.name)}">
-<header><span class="kind" title="${esc(GLOSSARY[s.kind])}">${KIND[s.kind]}</span><code class="name">${esc(s.name)}</code><a class="src" href="#L${s.line}" data-line="${s.line}">line ${s.line}</a></header>
+const chgBadge = (c: NormChange | undefined) => (c && c.change !== 'unchanged'
+  ? `<span class="chg chg-${c.change}">${c.change === 'renamed' ? `renamed from <code>${esc(c.oldName ?? '')}</code>` : c.change}${c.noteChanged ? ', note changed' : ''}</span>` : '');
+
+function normBlock(n: ExplainNorm, s: NormSlots, ctx: Ctx, chg?: NormChange, renames?: Map<string, string>): string {
+  const gherkinLines: GDiffLine[] = chg?.oldNorm && chg.old && renames ? gherkinNormDiff(chg.oldNorm, chg.old, n, s, renames).lines : gherkinNorm(n, s);
+  return `<article class="norm-block ${s.kind}${chg ? ` changed-${chg.change}` : ''}" id="norm-${esc(s.name)}">
+<header><span class="kind" title="${esc(GLOSSARY[s.kind])}">${KIND[s.kind]}</span><code class="name">${esc(s.name)}</code>${chgBadge(chg)}<a class="src" href="#L${s.line}" data-line="${s.line}">line ${s.line}</a></header>
 <div class="body">
 <div class="style style-a">${factSheet(s, ctx)}</div>
 <div class="style style-b">${prose(s, ctx)}</div>
-<div class="style style-c">${gherkinHtml(gherkinNorm(n, s), ctx)}</div>
+<div class="style style-c">${gherkinHtml(gherkinLines, ctx)}</div>
 ${s.authorNote ? `<p class="note full-only"><b>Specifier's note:</b> ${esc(s.authorNote)}</p>` : ''}
 </div></article>`;
 }
@@ -181,9 +192,57 @@ function ident(w: string, line: number, decl: Decls): string {
   return `<span class="${cls}">${esc(w)}</span>`;
 }
 
+// ------------------------------------------------------------------ changes since a baseline (issue #15)
+
+function changesHtml(diff: ContractDiff, ctx: Ctx, norms: ExplainNorm[], rules: RuleModel[]): string {
+  const codes = (xs: string[]) => xs.map((x) => `<code>${esc(x)}</code>`).join(', ');
+  const slotList = (sc: SlotChange[]) => `<ul class="slots">${sc.map((c) => c.added.length || c.removed.length
+    ? `<li><span class="slot">${esc(c.slot)}:</span><ul>${c.added.map((r) => `<li><span class="chg chg-added">added</span>${richHtml(r, ctx)}</li>`).join('')}${c.removed.map((r) => `<li><span class="chg chg-removed">removed</span><span class="gone">${richHtml(r, ctx)}</span></li>`).join('')}</ul></li>`
+    : `<li><span class="slot">${esc(c.slot)}:</span> ${c.before ? `<span class="gone">${richHtml(c.before, ctx)}</span>` : empty('nothing')} <span class="muted">→</span> ${c.after ? richHtml(c.after, ctx) : empty('nothing')}</li>`).join('')}</ul>`;
+  const kindWord = (k: ExplainNorm['kind']) => (k === 'survivingObligation' ? 'surviving obligation' : k);
+  const scen = (n: NormChange): string => {
+    const cur = norms.find((x) => x.name === n.name);
+    const parts: string[] = [];
+    if (n.change === 'added' && cur) parts.push(`scenarios added: ${codes(scenarioNames(cur, slots(cur, rules)))}`);
+    else if (n.change === 'removed' && n.oldNorm && n.old) parts.push(`scenarios removed: ${codes(scenarioNames(n.oldNorm, n.old))}`);
+    else if (cur && n.oldNorm && n.old) {
+      const d = gherkinNormDiff(n.oldNorm, n.old, cur, slots(cur, rules), diff.renames);
+      if (d.changed.length) parts.push(`scenarios changed: ${codes(d.changed)}`);
+      if (d.added.length) parts.push(`scenarios added: ${codes(d.added)}`);
+      if (d.removed.length) parts.push(`scenarios removed: ${codes(d.removed)}`);
+    }
+    return parts.length ? `<div class="muted scen">${parts.join(' · ')}</div>` : '';
+  };
+  const changedNorms = diff.norms.filter((n) => n.change !== 'unchanged');
+  const count = (k: string) => changedNorms.filter((n) => n.change === k).length;
+  if (diff.total === 0) return `<p class="lede">No change in meaning since <b>${esc(diff.baselineName)}</b>: both versions describe the same contract (formatting and comments aside).</p>`;
+  let html = `<p class="lede">${diff.total} change${diff.total === 1 ? '' : 's'} in meaning since <b>${esc(diff.baselineName)}</b>${changedNorms.length ? `: norms ${count('added')} added, ${count('removed')} removed, ${count('changed')} changed, ${count('renamed')} renamed` : ''}${diff.items.length ? `; ${diff.items.length} in declarations, domain or access rules` : ''}${diff.overview.length ? `; ${diff.overview.length} in the contract overview` : ''}. Formatting and comment edits are not counted. Changed norms carry a badge below; in the Gherkin style, their baseline steps appear struck through.</p>`;
+  if (changedNorms.length) {
+    html += `<div class="eyebrow">Obligations and powers</div><ul class="changes">${changedNorms.map((n) => {
+      const head = n.change === 'removed' ? `<code class="gone">${esc(n.name)}</code>` : `<a class="norm ${n.kind}" href="#norm-${esc(n.name)}">${esc(n.name)}</a>`;
+      const meta = `<span class="muted"> (${kindWord(n.kind)}${n.oldName ? `, was <code>${esc(n.oldName)}</code>` : ''}${n.noteChanged ? ", specifier's note changed" : ''})</span>`;
+      const was = n.change === 'removed' && n.old
+        ? `<div class="muted">was: ${richHtml(n.old.debtorLong, ctx)} ${n.old.isPower ? 'held a power against' : 'owed'} ${richHtml(n.old.creditorLong, ctx)}${n.old.must.length ? `; ${n.old.isPower ? 'effect' : 'had to bring about'}: ${richHtml(joinList(n.old.must, 'and'), ctx)}` : ''}</div>` : '';
+      return `<li><span class="chg chg-${n.change}">${n.change}</span>${head}${meta}${was}${n.slots.length ? slotList(n.slots) : ''}${scen(n)}</li>`;
+    }).join('')}</ul>`;
+  }
+  for (const g of ['Declarations', 'Parameters', 'Domain', 'Access rules']) {
+    const xs = diff.items.filter((it) => it.group === g);
+    if (!xs.length) continue;
+    html += `<div class="eyebrow">${esc(g)}</div><ul class="changes">${xs.map((it) => {
+      const before = it.before ? richHtml(it.before, ctx) : '', after = it.after ? richHtml(it.after, ctx) : '';
+      const body = it.change === 'added' ? after : it.change === 'removed' ? `<span class="gone">${before}</span>`
+        : it.change === 'renamed' ? `<code>${esc(it.oldName ?? '')}</code> <span class="muted">→</span> ${after}` : `<span class="gone">${before}</span> <span class="muted">→</span> ${after}`;
+      return `<li><span class="chg chg-${it.change}">${it.change}</span>${body}${it.line ? ` <a class="src" href="#L${it.line}" data-line="${it.line}">line ${it.line}</a>` : ''}</li>`;
+    }).join('')}</ul>`;
+  }
+  if (diff.overview.length) html += `<div class="eyebrow">The contract as a whole</div>${slotList(diff.overview)}`;
+  return html;
+}
+
 // ------------------------------------------------------------------ document
 
-export type DocOptions = { style: ExplainStyle; detail: Detail };
+export type DocOptions = { style: ExplainStyle; detail: Detail; diff?: ContractDiff | null };
 
 export async function buildDocumentHtml(model: ContractModel, source: string, opts: DocOptions): Promise<string> {
   const ex = model.explain!;
@@ -259,14 +318,15 @@ ${ov.observations.length ? field('Observations', `<ul class="muted">${ov.observa
   const group = (kind: ExplainNorm['kind'], title: string, lede: string) => {
     const ns = ex.norms.filter((n) => n.kind === kind);
     if (!ns.length) return '';
-    return `<section id="${kind}s"><h2>${esc(title)}</h2>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}${ns.map((n) => normBlock(n, slots(n, rules), ctx)).join('\n')}</section>`;
+    return `<section id="${kind}s"><h2>${esc(title)}</h2>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}${ns.map((n) => normBlock(n, slots(n, rules), ctx, diff?.norms.find((c) => c.name === n.name && c.change !== 'unchanged' && c.change !== 'removed'), diff?.renames)).join('\n')}</section>`;
   };
 
+  const diff = opts.diff ?? null;
   const ruleList = rules.length ? `<ul class="rules">${rules.map((r) => `<li>${richHtml(rulePhrase(r), ctx)}</li>`).join('')}</ul>` : '';
   const specHtml = highlightSpec(source, decl);
 
   const contents: [string, string][] = [
-    ['overview', 'Overview'], ...(hasTypes ? [['domain', 'Domain'] as [string, string]] : []), ...(hasNorms ? [['relations', 'Parties & norms'] as [string, string]] : []),
+    ['overview', 'Overview'], ...(diff ? [['changes', 'Changes'] as [string, string]] : []), ...(hasTypes ? [['domain', 'Domain'] as [string, string]] : []), ...(hasNorms ? [['relations', 'Parties & norms'] as [string, string]] : []),
     ...(rules.length ? [['policy', 'Access policy'] as [string, string]] : []),
     ...(ex.norms.some((n) => n.kind === 'obligation') ? [['obligations', 'Obligations'] as [string, string]] : []),
     ...(ex.norms.some((n) => n.kind === 'survivingObligation') ? [['survivingObligations', 'Surviving obligations'] as [string, string]] : []),
@@ -300,6 +360,7 @@ ${cssFor()}
 </header>
 <main>
 <section id="overview"><h2>The contract as a whole</h2>${overviewHtml}</section>
+${diff ? `<section id="changes"><h2>Changes since ${esc(diff.baselineName)}</h2>${changesHtml(diff, ctx, ex.norms, rules)}</section>` : ''}
 ${hasTypes ? `<section id="domain"><h2>Domain</h2><p class="lede">The domain model as a UML class diagram: base types (Role / Asset / Event / DataTransfer), inheritance, «Enumeration» and «thirdParty» stereotypes, and named associations for domain-typed attributes.</p>${domainFig}</section>` : ''}
 ${hasNorms ? `<section id="relations"><h2>Parties &amp; norms</h2><p class="lede">Parties (blue) with obligations (solid) and powers (dashed), debtor → creditor. Rules (yellow) point to their <i>To</i> role: green = Grant, red = Revoke, labelled with the permission.</p>${rulesFig}</section>` : ''}
 ${rules.length ? `<section id="policy"><h2>Access policy</h2><p class="lede">Roles (rows) × resources (columns).${ex.contract.acControllers.length ? ` Policy controller: <b>${esc(ex.contract.acControllers.join(', '))}</b>.` : ''}</p><div class="tablewrap">${matrixTableHtml(model)}</div>${ruleList}</section>` : ''}
@@ -308,7 +369,7 @@ ${group('survivingObligation', 'Surviving obligations', 'These remain enforceabl
 ${group('power', 'Powers', '')}
 <section id="specification"><h2>Specification</h2><p class="lede">The SymboleoAC source this documentation was generated from, coloured as in the editor. Identifiers in the text above jump to their declaration here; inside the source, references are linked to their declarations.</p>${specHtml}</section>
 </main>
-<footer>Generated by the SymboleoAC Web IDE from the specification of <code>${esc(name)}</code>. The explanations are derived mechanically from the specification; specifier's notes are the author's comments.</footer>
+<footer>Generated by the SymboleoAC Web IDE from the specification of <code>${esc(name)}</code>${diff ? `, compared with <code>${esc(diff.baselineName)}</code>` : ''}. The explanations are derived mechanically from the specification; specifier's notes are the author's comments.</footer>
 <script>
 ${JS}
 </script>
@@ -396,6 +457,13 @@ pre.spec .ln.flash { background: ${flash}; }
 .t-norm { color: #${sem.norm}; } .t-rule { color: #${sem.rule}; }
 .t-number { color: #${syn.number}; } .t-string { color: #${syn.string}; } .t-comment { color: #${syn.comment}; } .t-operator, .t-delimiter { color: #${syn.operator}; }
 pre.spec a.ref { text-decoration: underline dotted; } pre.spec a.ref:hover { text-decoration: underline; }
+.chg { display: inline-block; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+.norm-block header .chg { margin-left: 4px; }
+.chg-added { color: #1a7f37; background: #e6f4ea; } .chg-removed { color: #b42318; background: #fbe9e7; } .chg-changed { color: #1d4ed8; background: #e8eefc; } .chg-renamed { color: #7e22ce; background: #f3e8ff; }
+.gone { text-decoration: line-through; color: #b42318; }
+ul.changes { margin: 4px 0 12px; } ul.changes > li { margin: 6px 0; } ul.slots { margin: 4px 0 0; } .slot { color: var(--muted); font-weight: 600; font-size: 13px; } .scen { font-size: 13px; margin-top: 2px; }
+.norm-block.changed-added { border-left: 3px solid #1a7f37; } .norm-block.changed-changed { border-left: 3px solid #1d4ed8; } .norm-block.changed-renamed { border-left: 3px solid #7e22ce; }
+pre.gherkin .g-add { background: #e6f4ea; } pre.gherkin .g-del { background: #fbe9e7; text-decoration: line-through; opacity: .8; } pre.gherkin .g-gutter { color: var(--muted); user-select: none; }
 pre.spec .t-decl { font-weight: 600; }
 footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12.5px; }
 @media (max-width: 640px) { dl.sheet, .rule { grid-template-columns: 1fr; } }
