@@ -36,6 +36,7 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
 
 - **Theme selector** in the toolbar: SymboleoAC dark (default), SymboleoAC vivid,
   SymboleoAC light, Plain dark; the choice is remembered, and the ↻ button re-applies it.
+  The documentation export colours the specification with the selected theme.
 - **Branding**: the SymboleoAC lockup replaces the textual title, and the tab has a
   favicon, touch icon and web manifest (`web/public/brand`, `docs/brand`).
 - A **language-server indicator** in the toolbar (connected / connecting / reconnecting /

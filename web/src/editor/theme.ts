@@ -68,18 +68,28 @@ function themeData(base: 'vs' | 'vs-dark', syntax: Syntax, sem: SemanticPalette 
   };
 }
 
-export type ThemeChoice = { id: string; label: string; hint: string; data: monacoNs.editor.IStandaloneThemeData };
+export type ThemeChoice = { id: string; label: string; hint: string; data: monacoNs.editor.IStandaloneThemeData; base: 'vs' | 'vs-dark'; syntax: Syntax; semantic: SemanticPalette | null };
+export type { Syntax };
+
+const VIVID: SemanticPalette = { type: '2EE6C5', enumMember: '66D9FF', attribute: 'B8E6FF', parameter: 'FFD75E', instance: 'FFA347', event: 'FF5FC8', norm: 'B4FF5C', rule: 'FF6E4A' };
+const LIGHT: SemanticPalette = { type: '267F99', enumMember: '0070C1', attribute: '001080', parameter: '795E26', instance: 'B35900', event: 'AF00DB', norm: '3B7A00', rule: 'C72E2E' };
 
 export const THEMES: ThemeChoice[] = [
   { id: SYMBOLEOAC_THEME_ID, label: 'SymboleoAC dark', hint: 'Default: dark editor, one distinct colour per kind of element (teal types, orange roles/assets, pink events, green norms, coral rules, light-blue attributes, gold parameters).',
-    data: themeData('vs-dark', DARK_SYNTAX, SEMANTIC_COLOURS) },
+    data: themeData('vs-dark', DARK_SYNTAX, SEMANTIC_COLOURS), base: 'vs-dark', syntax: DARK_SYNTAX, semantic: SEMANTIC_COLOURS },
   { id: 'symboleoac-vivid', label: 'SymboleoAC vivid', hint: 'Dark editor with brighter, higher-contrast element colours.',
-    data: themeData('vs-dark', DARK_SYNTAX, { type: '2EE6C5', enumMember: '66D9FF', attribute: 'B8E6FF', parameter: 'FFD75E', instance: 'FFA347', event: 'FF5FC8', norm: 'B4FF5C', rule: 'FF6E4A' }) },
+    data: themeData('vs-dark', DARK_SYNTAX, VIVID), base: 'vs-dark', syntax: DARK_SYNTAX, semantic: VIVID },
   { id: 'symboleoac-light', label: 'SymboleoAC light', hint: 'Light editor (the rest of the IDE stays dark) with the element colours adapted to a white background.',
-    data: themeData('vs', LIGHT_SYNTAX, { type: '267F99', enumMember: '0070C1', attribute: '001080', parameter: '795E26', instance: 'B35900', event: 'AF00DB', norm: '3B7A00', rule: 'C72E2E' }) },
+    data: themeData('vs', LIGHT_SYNTAX, LIGHT), base: 'vs', syntax: LIGHT_SYNTAX, semantic: LIGHT },
   { id: 'symboleoac-plain', label: 'Plain dark', hint: 'Dark editor with syntax colours only: identifiers are not coloured by kind.',
-    data: themeData('vs-dark', DARK_SYNTAX, null) },
+    data: themeData('vs-dark', DARK_SYNTAX, null), base: 'vs-dark', syntax: DARK_SYNTAX, semantic: null },
 ];
+
+/** The selected theme's colours, for exports that reproduce the editor's colouring (documentation). */
+export function currentTheme(): ThemeChoice {
+  const id = currentThemeId();
+  return THEMES.find((t) => t.id === id) ?? THEMES[0];
+}
 
 /** The theme the user picked (persisted), or the default. */
 export function currentThemeId(): string {

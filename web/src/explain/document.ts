@@ -16,7 +16,7 @@ import { GLOSSARY, capitalize, joinList, overview, rulePhrase, slots, type NormS
 import { proseRich, type Detail } from './markdown.js';
 import { gherkinNorm, gherkinText, type GLine } from './gherkin.js';
 import { symboleoacKeywords, symboleoacControlKeywords, symboleoacBuiltins } from '../editor/symboleoac.monarch.js';
-import { SEMANTIC_COLOURS } from '../editor/theme.js';
+import { currentTheme } from '../editor/theme.js';
 
 /** Kind of a declared identifier, for the same colours as the editor's semantic tokens. */
 type IdKind = 'type' | 'enumMember' | 'attribute' | 'parameter' | 'instance' | 'event' | 'norm' | 'rule';
@@ -281,7 +281,7 @@ ${ov.observations.length ? field('Observations', `<ul class="muted">${ov.observa
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(name)} — documentation</title>
 <style>
-${CSS}
+${cssFor()}
 </style>
 </head>
 <body>
@@ -317,7 +317,16 @@ ${JS}
 `;
 }
 
-const CSS = `
+/** Stylesheet of the document; the specification block reproduces the editor's selected theme. */
+function cssFor(theme = currentTheme()): string {
+  const dark = theme.base === 'vs-dark';
+  const syn = theme.syntax;
+  const sem = theme.semantic ?? { type: syn.identifier, enumMember: syn.identifier, attribute: syn.identifier, parameter: syn.identifier, instance: syn.identifier, event: syn.identifier, norm: syn.identifier, rule: syn.identifier };
+  const semanticOn = theme.semantic !== null;
+  const specBg = dark ? '#1e1e1e' : '#fffffe';
+  const lineNo = dark ? '#858585' : '#9a9a9a';
+  const flash = dark ? '#3a3d41' : '#e6eef7';
+  return `
 :root { --paper:#f7f8f6; --panel:#fff; --ink:#1e262b; --muted:#66707a; --line:#d8ddd9; --code:#eef0ec; --accent:#2e5e8c;
   --obl:#2e5e8c; --obl-soft:#e7eef6; --surv:#1d7a6c; --surv-soft:#e3f1ee; --pow:#9c5a18; --pow-soft:#f7ecdf; --note:#f1f0e6; }
 * { box-sizing: border-box; }
@@ -378,20 +387,21 @@ pre.gherkin .desc, pre.gherkin .cmt, pre.gherkin .row { color: var(--muted); }
 .note { margin: 12px 0 0; padding: 7px 11px; background: var(--note); border-radius: 4px; color: var(--muted); font-style: italic; font-size: 13.5px; } .note b { font-style: normal; color: var(--ink); }
 html[data-style="a"] .style:not(.style-a), html[data-style="b"] .style:not(.style-b), html[data-style="c"] .style:not(.style-c) { display: none; }
 html[data-detail="brief"] .full-only { display: none !important; }
-pre.spec { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 10px 0; overflow-x: auto; font: 13px/1.45 Consolas, "Courier New", ui-monospace, monospace; margin: 0; }
-pre.spec .ln { display: block; padding: 0 12px; scroll-margin-top: 90px; white-space: pre; } pre.spec .ln .n { display: inline-block; width: 3.5em; color: #858585; user-select: none; }
-pre.spec .ln.flash { background: #3a3d41; }
-.t-keyword { color: #569cd6; } .t-control { color: #c586c0; } .t-predefined { color: #dcdcaa; } .t-identifier { color: #d4d4d4; }
-.t-type { color: #${SEMANTIC_COLOURS.type}; } .t-enumMember { color: #${SEMANTIC_COLOURS.enumMember}; } .t-attribute { color: #${SEMANTIC_COLOURS.attribute}; }
-.t-parameter { color: #${SEMANTIC_COLOURS.parameter}; font-style: italic; } .t-instance { color: #${SEMANTIC_COLOURS.instance}; } .t-event { color: #${SEMANTIC_COLOURS.event}; }
-.t-norm { color: #${SEMANTIC_COLOURS.norm}; } .t-rule { color: #${SEMANTIC_COLOURS.rule}; }
-.t-number { color: #b5cea8; } .t-string { color: #ce9178; } .t-comment { color: #6a9955; } .t-operator, .t-delimiter { color: #d4d4d4; }
+pre.spec { background: ${specBg}; color: #${syn.identifier}; border: 1px solid var(--line); border-radius: 8px; padding: 10px 0; overflow-x: auto; font: 13px/1.45 Consolas, "Courier New", ui-monospace, monospace; margin: 0; }
+pre.spec .ln { display: block; padding: 0 12px; scroll-margin-top: 90px; white-space: pre; } pre.spec .ln .n { display: inline-block; width: 3.5em; color: ${lineNo}; user-select: none; }
+pre.spec .ln.flash { background: ${flash}; }
+.t-keyword { color: #${syn.keyword}; } .t-control { color: #${syn.control}; } .t-predefined { color: #${syn.predefined}; } .t-identifier { color: #${syn.identifier}; }
+.t-type { color: #${sem.type}; } .t-enumMember { color: #${sem.enumMember}; } .t-attribute { color: #${sem.attribute}; }
+.t-parameter { color: #${sem.parameter}; ${semanticOn ? 'font-style: italic;' : ''} } .t-instance { color: #${sem.instance}; } .t-event { color: #${sem.event}; }
+.t-norm { color: #${sem.norm}; } .t-rule { color: #${sem.rule}; }
+.t-number { color: #${syn.number}; } .t-string { color: #${syn.string}; } .t-comment { color: #${syn.comment}; } .t-operator, .t-delimiter { color: #${syn.operator}; }
 pre.spec a.ref { text-decoration: underline dotted; } pre.spec a.ref:hover { text-decoration: underline; }
 pre.spec .t-decl { font-weight: 600; }
 footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12.5px; }
 @media (max-width: 640px) { dl.sheet, .rule { grid-template-columns: 1fr; } }
 @media print { header.top { position: static; } .controls, nav.contents { display: none; } .norm-block, figure.diagram, .tablewrap { break-inside: avoid; } body { background: #fff; } }
 `;
+}
 
 const JS = `
 (function () {

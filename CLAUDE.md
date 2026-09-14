@@ -196,8 +196,8 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
 - Dev-only inspection: `window.__symboleoacLsp.{state,started,attempts,reconnect,request,markers}`.
 - Themes: `editor/theme.ts` defines several themes (`THEMES`); `currentThemeId()` is persisted
   in localStorage, `selectTheme(id)` applies it globally, and `EditorPane`'s `editorOptions.theme`
-  uses `currentThemeId()` at boot. `SEMANTIC_COLOURS` (default palette) still feeds the
-  documentation export.
+  uses `currentThemeId()` at boot. `document.ts` builds its stylesheet with `cssFor(currentTheme())`,
+  so the exported specification block follows the selected theme (base, syntax and semantic colours).
 
 ## Go to Definition / References / Hover / Rename (language server)
 
