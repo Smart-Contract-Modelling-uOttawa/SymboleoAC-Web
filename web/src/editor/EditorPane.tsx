@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { LogLevel } from '@codingame/monaco-vscode-api';
 import * as monaco from '@codingame/monaco-vscode-editor-api';
 import { MonacoEditorReactComp } from '@typefox/monaco-editor-react';
 import type { EditorApp, EditorAppConfig } from 'monaco-languageclient/editorApp';
-import type { LanguageClientConfig } from 'monaco-languageclient/lcwrapper';
+import type { LanguageClientConfig, LanguageClientManager } from 'monaco-languageclient/lcwrapper';
+import { attachLspLifecycle, type LspState } from './lspLifecycle.js';
 import type { MonacoVscodeApiConfig } from 'monaco-languageclient/vscodeApiWrapper';
 import { LSP_URL } from '../config.js';
 import {
@@ -13,7 +14,7 @@ import {
   symboleoacMonarchLanguage,
 } from './symboleoac.monarch.js';
 import { registerSymboleoacSignatureHelp } from './signatureHelp.js';
-import { applySymboleoacTheme, SYMBOLEOAC_THEME_ID, symboleoacTheme } from './theme.js';
+import { applySymboleoacTheme, currentThemeId, defineSymboleoacThemes } from './theme.js';
 
 type Props = {
   initialCode: string;
@@ -22,6 +23,8 @@ type Props = {
   /** Fires once the editor exists, handing back the Monaco editor instance so
    *  the parent can push content into it (sample switch, file open). */
   onEditorReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+  /** Connection state of the language client (kept alive and reconnected by lspLifecycle.ts). */
+  onConnectionState?: (state: LspState) => void;
 };
 
 const FILE_URI_PREFIX = 'file:///workspace/';
@@ -41,7 +44,17 @@ const vscodeApiConfig: MonacoVscodeApiConfig = {
   },
 };
 
-export function EditorPane({ initialCode, initialName, onTextChanged, onEditorReady }: Props) {
+export function EditorPane({ initialCode, initialName, onTextChanged, onEditorReady, onConnectionState }: Props) {
+  // Heartbeat + reconnection for the language client (see lspLifecycle.ts).
+  const lifecycleRef = useRef<(() => void) | null>(null);
+  const handleLanguageClientsStartDone = useCallback((lcs: LanguageClientManager) => {
+    const wrapper = lcs.getLanguageClientWrapper(SYMBOLEOAC_LANGUAGE_ID);
+    if (!wrapper) return;
+    lifecycleRef.current?.();
+    lifecycleRef.current = attachLspLifecycle(wrapper, (s) => onConnectionState?.(s));
+  }, [onConnectionState]);
+  useEffect(() => () => { lifecycleRef.current?.(); lifecycleRef.current = null; }, []);
+
   // Memoize configs so the underlying wrapper isn't torn down on every render.
   const editorAppConfig: EditorAppConfig = useMemo(() => ({
     id: 'symboleoac-main',
@@ -70,7 +83,7 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       scrollBeyondLastLine: false,
       // Our theme, not 'vs-dark': the wrapper re-applies these options on every config
       // pass, and updateOptions({theme}) switches Monaco's global theme.
-      theme: SYMBOLEOAC_THEME_ID,
+      theme: currentThemeId(),
     },
   }), [initialCode, initialName]);
 
@@ -101,11 +114,11 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
     if (typeof txt.modified === 'string') onTextChanged(txt.modified);
   }, [onTextChanged]);
 
-  // Define the theme as soon as the monaco-vscode-api services exist, i.e. before the
-  // editor is created with `theme: SYMBOLEOAC_THEME_ID` (an unknown theme name would fall
+  // Define the themes as soon as the monaco-vscode-api services exist, i.e. before the
+  // editor is created with `theme: currentThemeId()` (an unknown theme name would fall
   // back to the light 'vs' theme).
   const handleApiInitDone = useCallback(() => {
-    monaco.editor.defineTheme(SYMBOLEOAC_THEME_ID, symboleoacTheme);
+    defineSymboleoacThemes(monaco);
   }, []);
 
   const handleEditorStartDone = useCallback((editorApp?: EditorApp) => {
@@ -132,6 +145,7 @@ export function EditorPane({ initialCode, initialName, onTextChanged, onEditorRe
       onTextChanged={handleTextChanged}
       onVscodeApiInitDone={handleApiInitDone}
       onEditorStartDone={handleEditorStartDone}
+      onLanguageClientsStartDone={handleLanguageClientsStartDone}
       logLevel={LogLevel.Warning}
     />
   );

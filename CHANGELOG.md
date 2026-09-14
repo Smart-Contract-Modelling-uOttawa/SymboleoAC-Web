@@ -34,6 +34,23 @@ deliverable (front end, bridge, language-server jar and codegen jar together).
     or in its cell. The category, Grant/Revoke and obligation/power colours are left
     untouched, so the views keep their meaning while the differences stand out.
 
+- **Theme selector** in the toolbar: SymboleoAC dark (default), SymboleoAC vivid,
+  SymboleoAC light, Plain dark; the choice is remembered, and the ↻ button re-applies it.
+- **Branding**: the SymboleoAC lockup replaces the textual title, and the tab has a
+  favicon, touch icon and web manifest (`web/public/brand`, `docs/brand`).
+- A **language-server indicator** in the toolbar (connected / connecting / reconnecting /
+  disconnected).
+
+### Fixed
+
+- **Diagnostics, completion, navigation and semantic colouring vanished for good** after
+  the language-server session ended: the bridge closes an idle session after 10 minutes,
+  a redeploy drops every session, and the client library's restart hook never fires
+  (`monaco-languageclient` 10.7 registers `() => restartLC` instead of calling it). The
+  editor now keeps a visible tab's session alive with a heartbeat the bridge swallows
+  (`symboleoac/keepAlive`) and reconnects automatically (with backoff, and when a hidden
+  tab becomes visible again), re-opening the document on the new session.
+
 ### Planned
 
 - Change note in the documentation export; side-by-side baseline/current diagrams ([#15](https://github.com/Smart-Contract-Modelling-uOttawa/SymboleoAC-Web/issues/15)).

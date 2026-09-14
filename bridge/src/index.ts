@@ -25,7 +25,6 @@ import { IWebSocket, WebSocketMessageReader, WebSocketMessageWriter } from 'vsco
 import {
   createConnection,
   createServerProcess,
-  forward,
 } from 'vscode-ws-jsonrpc/server';
 import { Message } from 'vscode-jsonrpc';
 
@@ -53,6 +52,7 @@ const ALLOW_ORIGIN = env('ALLOW_ORIGIN', '*');
 const GEN_TIMEOUT_MS = Number(env('GEN_TIMEOUT_MS', '30000'));
 // M7 hardening knobs:
 const IDLE_TIMEOUT_MS = Number(env('IDLE_TIMEOUT_MS', '600000')); // kill an LSP session idle this long (10 min)
+const KEEPALIVE_METHOD = 'symboleoac/keepAlive'; // heartbeat notification from the web client; swallowed here
 const RATE_WINDOW_MS = Number(env('RATE_WINDOW_MS', '60000'));   // /generate per-IP fixed window
 const RATE_MAX = Number(env('RATE_MAX', '20'));                  // …max requests per window
 const MAX_CONCURRENT_GEN = Number(env('MAX_CONCURRENT_GEN', '4')); // cap simultaneous codegen JVMs
@@ -278,7 +278,7 @@ wss.on('connection', (ws: WebSocket) => {
 
   // Idle reaper: an abandoned browser tab leaves a JVM pinned. Track the last
   // client→server message and close the socket after IDLE_TIMEOUT_MS of silence.
-  // ws.close() triggers forward()'s onClose cascade → serverConnection.dispose()
+  // ws.close() triggers the onClose cascade below → serverConnection.dispose()
   // → process.kill(), so the JVM is reclaimed.
   let lastActivity = Date.now();
   const reaperInterval = Math.min(30000, Math.max(1000, Math.floor(IDLE_TIMEOUT_MS / 4)));
@@ -290,21 +290,28 @@ wss.on('connection', (ws: WebSocket) => {
   }, reaperInterval);
   idleTimer.unref();
 
-  forward(socketConnection, serverConnection, (message: Message) => {
+  // Client → server. A `symboleoac/keepAlive` notification (sent by a visible tab
+  // every few minutes, see web/src/editor/lspLifecycle.ts) counts as activity but
+  // never reaches the JVM. Server → client is forwarded verbatim.
+  socketConnection.reader.listen((message: Message) => {
     lastActivity = Date.now();
+    if (Message.isNotification(message) && message.method === KEEPALIVE_METHOD) return;
     if (isRequest(message) && message.method === 'initialize' && message.params) {
       const p = message.params;
       p.rootUri = sessionUri;
       p.rootPath = sessionDir;
       p.workspaceFolders = [{ uri: sessionUri, name: 'workspace' }];
     }
-    return message;
+    serverConnection.writer.write(message);
   });
+  serverConnection.reader.listen((message: Message) => { socketConnection.writer.write(message); });
+  socketConnection.onClose(() => serverConnection.dispose());
+  serverConnection.onClose(() => socketConnection.dispose());
 
   ws.on('close', () => {
     activeSessions = Math.max(0, activeSessions - 1);
     clearInterval(idleTimer);
-    // forward() already disposes serverConnection on socket close; call it
+    // the onClose cascade already disposes serverConnection on socket close; call it
     // explicitly too in case the close races ahead of the reader's onClose.
     try { serverConnection.dispose(); } catch { /* already gone */ }
     try { rmSync(sessionDir, { recursive: true, force: true }); } catch { /* best-effort */ }

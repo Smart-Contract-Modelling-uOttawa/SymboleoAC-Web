@@ -184,6 +184,21 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
 - Dev-only hook for browser checks: `window.__symboleoac.setSource(text)` / `getSource()`
   (guarded by `import.meta.env.DEV`; the Monaco textarea is not reachable by synthetic paste).
 
+## Language-client lifecycle (keep-alive + reconnection)
+
+- `web/src/editor/lspLifecycle.ts` (attached in `EditorPane` via `onLanguageClientsStartDone`):
+  watches the client's state; on `Stopped` it calls `wrapper.restart()` with backoff while
+  the tab is visible, and on `visibilitychange` for hidden tabs. Every 4 min a visible tab
+  sends the `symboleoac/keepAlive` notification, which the bridge counts as activity and
+  drops (never forwarded to the JVM). Do not rely on `restartOptions`: monaco-languageclient
+  10.7's `initRestartConfiguration` registers `() => restartLC` (a no-op).
+- `App.tsx` shows the state as a dot + text in the header (`onConnectionState`).
+- Dev-only inspection: `window.__symboleoacLsp.{state,started,attempts,reconnect,request,markers}`.
+- Themes: `editor/theme.ts` defines several themes (`THEMES`); `currentThemeId()` is persisted
+  in localStorage, `selectTheme(id)` applies it globally, and `EditorPane`'s `editorOptions.theme`
+  uses `currentThemeId()` at boot. `SEMANTIC_COLOURS` (default palette) still feeds the
+  documentation export.
+
 ## Go to Definition / References / Hover / Rename (language server)
 
 - The upstream grammar refers to variables, norms and rules by plain `ID` (e.g.
@@ -203,10 +218,10 @@ See `DEPLOY.md` for the full M5 (VPS/Caddy) + M6 (GitHub Pages) runbook.
     (event instances), function (obligations, powers), macro (rules); `declaration`
     modifier at declaration sites. The web editor enables
     `editor.semanticHighlighting.enabled` in `EditorPane.tsx`'s `vscodeApiConfig`.
-    Colours come from `web/src/editor/theme.ts` (`symboleoac-dark`, matched by semantic
-    token TYPE NAME, not TextMate scope). Monaco's theme is global and the React wrapper
-    re-applies `editorOptions` on every config pass, so `editorOptions.theme` must be
-    `SYMBOLEOAC_THEME_ID` (defined in `onVscodeApiInitDone`) and no other
+    Colours come from `web/src/editor/theme.ts` (`symboleoac-dark` and variants, matched by
+    semantic token TYPE NAME, not TextMate scope). Monaco's theme is global and the React
+    wrapper re-applies `editorOptions` on every config pass, so `editorOptions.theme` must be
+    the selected SymboleoAC theme (all defined in `onVscodeApiInitDone`) and no other
     `monaco.editor.create(...)` may pass a `theme` option.
   Attribute names after "." and `obligations.X` are real cross-references and stay with
   Xtext (definition, hover description and rename all work for them too).

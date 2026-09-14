@@ -3,6 +3,8 @@ import type * as monaco from '@codingame/monaco-vscode-editor-api';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { EditorPane } from './editor/EditorPane.js';
 import { DiffPane } from './editor/DiffPane.js';
+import type { LspState } from './editor/lspLifecycle.js';
+import { THEMES, currentThemeId, selectTheme } from './editor/theme.js';
 import { applyChangeGutter } from './editor/gutter.js';
 import { compareModels, type ContractDiff } from './explain/diff.js';
 import { generate, type GenerateResult } from './codegen/api.js';
@@ -29,6 +31,13 @@ const btn: React.CSSProperties = {
   padding: '4px 12px', background: '#3a3d41', color: '#fff', border: 'none',
   borderRadius: 2, cursor: 'pointer', fontSize: 12,
 };
+const LSP_STATE_COLOUR: Record<LspState, string> = { connected: '#89d185', connecting: '#cca700', reconnecting: '#cca700', disconnected: '#f48771' };
+const LSP_STATE_TEXT: Record<LspState, string> = {
+  connected: 'Language server connected: diagnostics, completion, navigation and semantic colouring are live.',
+  connecting: 'Connecting to the language server…',
+  reconnecting: 'The language-server session ended (idle timeout, network, or redeploy); reconnecting automatically.',
+  disconnected: 'The language server is unreachable; reconnection keeps being retried. Highlighting still works, diagnostics and completion do not.',
+};
 
 export function App() {
   const sourceRef = useRef(DEFAULT_SAMPLE);
@@ -51,6 +60,9 @@ export function App() {
   const [baseline, setBaseline] = useState<{ name: string; source: string } | null>(null);
   const [baselineModel, setBaselineModel] = useState<ContractModel | null>(null);
   const [compareOn, setCompareOn] = useState(false);
+  const [lspState, setLspState] = useState<LspState>('connecting');
+  const [themeId, setThemeId] = useState<string>(() => currentThemeId());
+  const applyTheme = useCallback((id: string) => { setThemeId(id); selectTheme(id); }, []);
 
   useEffect(() => {
     setBaselineModel(null);
@@ -247,7 +259,12 @@ export function App() {
         display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
         background: '#2d2d30', borderBottom: '1px solid #333',
       }}>
-        <strong style={{ fontSize: 14 }}>SymboleoAC Web IDE</strong>
+        <img
+          src={`${import.meta.env.BASE_URL}brand/symboleoac-lockup-dark.svg`}
+          alt="SymboleoAC Web IDE"
+          title="SymboleoAC Web IDE"
+          style={{ height: 30, display: 'block' }}
+        />
 
         <label style={{ fontSize: 12, color: '#9cdcfe' }}>
           Example:{' '}
@@ -299,6 +316,25 @@ export function App() {
 
         <div style={{ flex: 1 }} />
 
+        <label title="Editor theme: the colours of keywords and of each kind of identifier (semantic colouring). Pick a theme, or the same one again, to re-apply it." style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#9cdcfe' }}>
+          <select
+            value={themeId}
+            onChange={(e) => applyTheme(e.target.value)}
+            style={{ background: '#3a3d41', color: '#fff', border: '1px solid #555', borderRadius: 2, padding: '2px 4px', fontSize: 12 }}
+          >
+            {THEMES.map((t) => <option key={t.id} value={t.id} title={t.hint}>{t.label}</option>)}
+          </select>
+          <button type="button" onClick={() => applyTheme(themeId)} style={{ ...btn, padding: '3px 7px' }} title="Re-apply the selected theme">↻</button>
+        </label>
+
+        <span
+          title={LSP_STATE_TEXT[lspState]}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#9cdcfe', cursor: 'help' }}
+        >
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: LSP_STATE_COLOUR[lspState], display: 'inline-block' }} />
+          {lspState === 'connected' ? 'language server' : lspState === 'connecting' ? 'connecting…' : lspState === 'reconnecting' ? 'reconnecting…' : 'disconnected'}
+        </span>
+
         <button
           type="button"
           onClick={handleGenerate}
@@ -335,6 +371,7 @@ export function App() {
                   initialName={boot.name}
                   onTextChanged={handleTextChanged}
                   onEditorReady={handleEditorReady}
+                  onConnectionState={setLspState}
                 />
               </div>
               {compareOn && baseline && (
